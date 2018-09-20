@@ -13,37 +13,114 @@
 #include <string>
 #include <iostream>
 
+
 using namespace std;
 
-class TestCommand{
 
-    string comm;
-    map<string, string> args;
+class Handler{
 
 public:
-    TestCommand( string command, map<string, string> arguments){
-        comm = command;
-        args = arguments;
+    int process(string command, map<string,string> arg ){
+
+       if (arg["bunny"] == "white") return 66;
+
+       return 99;
     }
-
-
-
-
 };
 
 BOOST_AUTO_TEST_CASE( ChannelTest1 ){
 
     boost::asio::io_context io_context;
 
-    ChannelProvider<TestCommand> testChannel(1028);
+    ChannelProvider<string,map<string,string>,int,Handler> testChannel(1028);
 
 
-    ChannelClient<TestCommand> testClient(1028);
+    ChannelClient<string,map<string,string>,int> testClient(1028);
 
-    cout << testClient.sendReceive("Pooh Says: ") << "\n";
+    std::map<string, string> args;
+    args["pooh"] = "yellow";
+    args["bunny"] = "white";
+    args["kuma"] = "brown";
 
-//    boost::asio::steady_timer t(io_context, boost::asio::chrono::seconds(5));
-//    t.wait();
+    int retVal = testClient.send("command1", args);
+
+    BOOST_CHECK_EQUAL(  retVal, 66 );
+
+    args["bunny"] = "red";
+
+    retVal = testClient.send("command1", args);
+
+    BOOST_CHECK_EQUAL(  retVal, 99 );
+
+
+}
+
+
+class Handler2{
+
+public:
+    string process(string command, map<string,string> arg ){
+        stringstream ssRet;
+        ssRet << command << ":"  << arg["pooh"] << ":" << arg["bunny"] << ":" << arg["kuma"];
+
+        return ssRet.str();
+    }
+};
+
+BOOST_AUTO_TEST_CASE( ChannelTest2 ){
+
+    boost::asio::io_context io_context;
+
+    ChannelProvider<string,map<string,string>,string,Handler2> testChannel(1028);
+
+
+    ChannelClient<string,map<string,string>,string> testClient(1028);
+
+    std::map<string, string> args;
+    args["pooh"] = "yellow";
+    args["bunny"] = "white";
+    args["kuma"] = "brown";
+
+    string retVal = testClient.send("red", args);
+
+    BOOST_CHECK_EQUAL(  retVal, "red:yellow:white:brown" );
+
+    args["bunny"] = "red";
+
+    retVal = testClient.send("blue", args);
+
+    BOOST_CHECK_EQUAL(  retVal, "blue:yellow:red:brown" );
+
+
+}
+
+
+
+class Handler3{
+
+public:
+    int process(int command, int arg ){
+       return command + arg;
+    }
+};
+
+BOOST_AUTO_TEST_CASE( ChannelTest3 ){
+
+    boost::asio::io_context io_context;
+
+    ChannelProvider<int,int,int,Handler3> testChannel(1034);
+
+
+    ChannelClient<int,int,int> testClient(1034);
+
+    int retVal = testClient.send(41,1);
+
+    BOOST_CHECK_EQUAL(  retVal, 42 );
+
+
+    retVal = testClient.send(66, 3);
+
+    BOOST_CHECK_EQUAL(  retVal, 69 );
 
 
 }

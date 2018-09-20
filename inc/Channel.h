@@ -11,6 +11,11 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <sstream>
+#include <boost/serialization/map.hpp>
+#include <boost/serialization/string.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
@@ -21,7 +26,8 @@ using boost::asio::ip::tcp;
 
 enum{ maxDataLength = 1024};
 
-class TcpSession{
+template< class C, class A, class R, class H >
+class TcpSession: H {
 
 private:
     tcp::socket socket_;
@@ -39,19 +45,38 @@ public:
 
     void startSession(){
         socket_.async_read_some( boost::asio::buffer(readBuffer_, maxDataLength),
-            boost::bind(&TcpSession::handle_read, this,
+            boost::bind(&TcpSession<C,A,R,H>::handle_read, this,
                 boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred));
     }
 
+
+
 private:
+
     void handle_read(const boost::system::error_code& error, size_t bytes_transferred){
         if (!error){
             readBuffer_[bytes_transferred] = '\0';
-            writeBuffer_ = std::string(readBuffer_.data()) + "Bunny really ruvs Pooh";
+
+            std::stringstream sr;
+            sr << readBuffer_.data();
+            boost::archive::text_iarchive ia(sr);
+            C command;
+            A arg;
+
+            ia >> command >> arg;
+
+            ///  handler class must pocess this function
+            R retVal = H::process( command, arg);
+
+            std::stringstream ss;
+            boost::archive::text_oarchive oa(ss);
+            oa << retVal;
+
+            writeBuffer_ = ss.str();
 
             boost::asio::async_write(socket_,  boost::asio::buffer(writeBuffer_),
-                boost::bind(&TcpSession::handle_write, this,
+                boost::bind(&TcpSession<C,A,R,H>::handle_write, this,
                     boost::asio::placeholders::error));
         }
         else{
@@ -62,7 +87,7 @@ private:
     void handle_write(const boost::system::error_code& error){
         if (!error){
             socket_.async_read_some(boost::asio::buffer(readBuffer_, maxDataLength),
-                boost::bind(&TcpSession::handle_read, this,
+                boost::bind(&TcpSession<C,A,R,H>::handle_read, this,
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred));
         }
@@ -75,6 +100,7 @@ private:
 };
 
 
+template< class C, class A, class R, class H >
 class TcpServer
 {
 private:
@@ -86,7 +112,7 @@ public:
         : io_(io),
         acceptor_(io, tcp::endpoint(tcp::v4(), port)){
 
-        TcpSession* newSession = new TcpSession(io_);
+        TcpSession<C,A,R,H>* newSession = new TcpSession<C,A,R,H>(io_);
         acceptor_.async_accept(newSession->socket(),
             boost::bind(&TcpServer::handle_accept, this, newSession,
                 boost::asio::placeholders::error));
@@ -99,11 +125,11 @@ public:
 
 private:
 
-    void handle_accept(TcpSession* newSession, const boost::system::error_code& error) {
+    void handle_accept(TcpSession<C,A,R,H>* newSession, const boost::system::error_code& error) {
 
         if (!error){
             newSession->startSession();
-            newSession = new TcpSession(io_);
+            newSession = new TcpSession<C,A,R,H>(io_);
             acceptor_.async_accept(newSession->socket(),
                 boost::bind(&TcpServer::handle_accept, this, newSession,
                     boost::asio::placeholders::error));
@@ -118,12 +144,12 @@ private:
 
 
 
-template<class T>
+template< class C, class A, class R, class H >
 class ChannelProvider{
 
 private:
     boost::asio::io_service io_;
-    TcpServer server_;
+    TcpServer<C,A,R,H> server_;
     std::thread workerThread;
 
     void runIo(){
@@ -134,7 +160,7 @@ public:
     ChannelProvider(short port)
         : server_(io_, port) {
 
-        workerThread = std::thread(&ChannelProvider<T>::runIo, this);
+        workerThread = std::thread(&ChannelProvider<C,A,R,H>::runIo, this);
 
     }
 
@@ -149,7 +175,7 @@ public:
 };
 
 
-template<class T>
+template< class C, class A, class R >
 class ChannelClient{
 
 private:
@@ -176,10 +202,14 @@ public:
     }
 
 
-    string sendReceive( string send){
+    R send( C command, A arg){
+
+        std::stringstream ss;
+        boost::archive::text_oarchive oa(ss);
+        oa << command << arg;
 
         boost::system::error_code error;
-        socket_.write_some(boost::asio::buffer(send), error);
+        socket_.write_some(boost::asio::buffer(ss.str()), error);
         if (error){
             throw boost::system::system_error(error);
         }
@@ -190,8 +220,14 @@ public:
             throw boost::system::system_error(error);
         }
 
+        std::stringstream sr;
         buf[rlen] = '\0';
-        return buf.data();
+        sr << buf.data();
+        boost::archive::text_iarchive ia(sr);
+        R retVal;
+        ia >> retVal;
+
+        return retVal;
 
     }
 

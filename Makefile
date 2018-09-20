@@ -36,7 +36,7 @@ test: testRunner main
 	./testRunner
 
 testRunner: $(OBJ) $(TEST)
-	$(CC) -o $@ test/TestMain.cpp $^ -L/usr/local/lib -lboost_unit_test_framework -lboost_system -DBOOST_TEST_DYN_LINK  -Wl,-rpath,'.' $(CPPFLAGS) $(LFLAGS)
+	$(CC) -o $@ test/TestMain.cpp $^ -L/usr/local/lib -lboost_unit_test_framework -lboost_system -lboost_serialization -DBOOST_TEST_DYN_LINK  -Wl,-rpath,'.' $(CPPFLAGS) $(LFLAGS)
 
 
 clean:
