@@ -11,3 +11,5 @@ echo
 main
 server
 testRunner
+
+boostlib/*

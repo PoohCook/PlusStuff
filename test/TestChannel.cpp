@@ -32,7 +32,6 @@ public:
 
 BOOST_AUTO_TEST_CASE( ChannelTest1 ){
 
-    boost::asio::io_context io_context;
 
     ChannelProvider<map<string,string>,int,Handler> testChannel(1028);
 
@@ -71,7 +70,6 @@ public:
 
 BOOST_AUTO_TEST_CASE( ChannelTest2 ){
 
-    boost::asio::io_context io_context;
 
     ChannelProvider<map<string,string>,string,Handler2> testChannel(1028);
 
@@ -108,7 +106,6 @@ public:
 
 BOOST_AUTO_TEST_CASE( ChannelTest3 ){
 
-    boost::asio::io_context io_context;
 
     ChannelProvider<int,int,Handler3> testChannel(1034);
 
@@ -168,7 +165,6 @@ public:
 
 BOOST_AUTO_TEST_CASE( ChannelTest4 ){
 
-    boost::asio::io_context io_context;
 
     ChannelProvider<Command,Command,Handler4> testChannel(1028);
 

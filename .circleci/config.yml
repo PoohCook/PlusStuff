@@ -1,0 +1,54 @@
+#
+version: 2
+jobs:
+  build:
+    docker:
+      # specify the version you desire here
+      - image: circleci/python:3.6.1
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "cache.key" }}
+          # fallback to using the latest cache if no exact match is found
+          # - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install -r requirements.txt
+#            sudo apt-get update
+#            sudo apt-get install g++
+#            sudo apt-get install build-essential
+#            sudo apt-get install python-dev libxml2-dev libxslt-dev
+#            sudo mkdir -p /usr/local/include/python3.6
+#            sudo cp /usr/include/python2.7/* /usr/local/include/python3.6/
+#            find /usr -name pyconfig.h
+#            sudo make boostlib
+
+
+
+      - save_cache:
+          paths:
+             - ./venv
+             - ./boostlib
+
+          key: v1-dependencies-{{ checksum "cache.key" }}
+
+      # run tests!
+      - run:
+          name: run tests
+          command: |
+            gcc --version
+            make test
+
+      - store_artifacts:
+          path: test-reports
+          destination: test-reports
