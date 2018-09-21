@@ -17,8 +17,8 @@ using namespace std;
 
 
 template<class T>
-class Worker{
-
+class Worker
+{
     queue<T> fifo;
     mutex worker_mutex;
     condition_variable next;

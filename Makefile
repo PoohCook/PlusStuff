@@ -2,8 +2,8 @@ CC = g++
 CPPFLAGS = -Wall -std=c++11 -iquote inc
 LFLAGS = -Wall
 
-DEPS = inc/Worker.h inc/Channel.h
-OBJ = obj/Worker.o
+DEPS = inc/Worker.h inc/Channel.h inc/TcpServer.h
+OBJ = obj/Worker.o obj/TcpServer.o
 TEST = obj/TestMessageBuffer.o obj/TestWorker.o obj/TestChannel.o
 
 
