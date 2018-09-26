@@ -16,7 +16,7 @@ public:
     }
 };
 
-static void testCreate(){
+void testCreate(){
 
     boost::asio::io_service io;
     TcpServer<int, int, DummyHandler1> server(io, 1033);

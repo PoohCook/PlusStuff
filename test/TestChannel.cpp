@@ -36,7 +36,8 @@ BOOST_AUTO_TEST_CASE( ChannelTest1 ){
     ChannelProvider<map<string,string>,int,Handler> testChannel(1028);
 
 
-    ChannelClient<map<string,string>,int> testClient(1028);
+    int client_id = 105280;
+    ChannelClient<map<string,string>,int> testClient(client_id, 1028);
 
     std::map<string, string> args;
     args["pooh"] = "yellow";
@@ -73,8 +74,8 @@ BOOST_AUTO_TEST_CASE( ChannelTest2 ){
 
     ChannelProvider<map<string,string>,string,Handler2> testChannel(1028);
 
-
-    ChannelClient<map<string,string>,string> testClient(1028);
+    int client_id = 105288;
+    ChannelClient<map<string,string>,string> testClient(client_id, 1028);
 
     std::map<string, string> args;
     args["pooh"] = "yellow";
@@ -109,8 +110,12 @@ BOOST_AUTO_TEST_CASE( ChannelTest3 ){
 
     ChannelProvider<int,int,Handler3> testChannel(1034);
 
+    int client_id = 105366;
+    ChannelClient<int,int> testClient(client_id, 1034);
 
-    ChannelClient<int,int> testClient(1034);
+    BOOST_CHECK_EQUAL(  testChannel.attachedSessionIds().size(), 1 );
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedSessionIds()[0], client_id );
 
     int retVal = testClient.send(41);
 
@@ -168,8 +173,8 @@ BOOST_AUTO_TEST_CASE( ChannelTest4 ){
 
     ChannelProvider<Command,Command,Handler4> testChannel(1028);
 
-
-    ChannelClient<Command,Command> testClient(1028);
+    int client_id = 100666;
+    ChannelClient<Command,Command> testClient(client_id, 1028);
 
     Command command;
     command.command = "purple";
@@ -185,5 +190,36 @@ BOOST_AUTO_TEST_CASE( ChannelTest4 ){
 
 
 }
+
+
+static void create_test_channel( int client_id, short port ) {
+    ChannelClient<int,int> testClient(client_id, port);
+}
+
+BOOST_AUTO_TEST_CASE( ChannelTest5 ){
+
+
+    ChannelProvider<int,int,Handler3> testChannel(1034);
+
+    //  white list the wrong client_id.  This invokes white listing
+    testChannel.whitelist( 150);
+
+    int client_id = 105366;
+
+    BOOST_CHECK_THROW (create_test_channel(client_id, 1034), boost::system::system_error);
+
+    testChannel.whitelist(client_id);
+
+    ChannelClient<int,int> testClient(client_id, 1034);
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedSessionIds()[0], client_id );
+
+    int retVal = testClient.send(41);
+
+    BOOST_CHECK_EQUAL(  retVal, 42 );
+
+}
+
+
 
 
