@@ -6,35 +6,28 @@
  */
 
 
+#include <string>
+#include <iostream>
 #include <boost/test/unit_test.hpp>
 #include <boost/asio.hpp>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/string.hpp>
-
 #include "Channel.h"
-#include <string>
-#include <iostream>
-
 
 using namespace std;
 
 
 class Handler{
-
 public:
     int process( map<string,string> command ){
-
        if (command["bunny"] == "white") return 66;
-
        return 99;
     }
 };
 
 BOOST_AUTO_TEST_CASE( ChannelTest1 ){
 
-
     ChannelProvider<map<string,string>,int,Handler> testChannel(1028);
-
 
     int client_id = 105280;
     ChannelClient<map<string,string>,int> testClient(client_id, 1028);
@@ -54,12 +47,10 @@ BOOST_AUTO_TEST_CASE( ChannelTest1 ){
 
     BOOST_CHECK_EQUAL(  retVal, 99 );
 
-
 }
 
 
 class Handler2{
-
 public:
     string process(map<string,string> arg ){
         stringstream ssRet;
@@ -70,7 +61,6 @@ public:
 };
 
 BOOST_AUTO_TEST_CASE( ChannelTest2 ){
-
 
     ChannelProvider<map<string,string>,string,Handler2> testChannel(1028);
 
@@ -92,13 +82,10 @@ BOOST_AUTO_TEST_CASE( ChannelTest2 ){
 
     BOOST_CHECK_EQUAL(  retVal, "yellow:red:brown" );
 
-
 }
 
 
-
 class Handler3{
-
 public:
     int process(int command ){
        return command + 1;
@@ -130,7 +117,6 @@ BOOST_AUTO_TEST_CASE( ChannelTest3 ){
 }
 
 
-
 class Command{
 private:
     friend class boost::serialization::access;
@@ -150,9 +136,7 @@ public:
 
 };
 
-
 class Handler4{
-
 public:
     Command process(Command command ){
 
@@ -169,7 +153,6 @@ public:
 };
 
 BOOST_AUTO_TEST_CASE( ChannelTest4 ){
-
 
     ChannelProvider<Command,Command,Handler4> testChannel(1028);
 
@@ -188,7 +171,6 @@ BOOST_AUTO_TEST_CASE( ChannelTest4 ){
 
     BOOST_CHECK_EQUAL(  response.args["pooh"], "yellow_resp");
 
-
 }
 
 
@@ -197,7 +179,6 @@ static void create_test_channel( int client_id, short port ) {
 }
 
 BOOST_AUTO_TEST_CASE( ChannelTest5 ){
-
 
     ChannelProvider<int,int,Handler3> testChannel(1034);
 
@@ -221,5 +202,76 @@ BOOST_AUTO_TEST_CASE( ChannelTest5 ){
 }
 
 
+class Handler5{
+public:
+    Command process(Command command ){
+
+        Command response;
+        response.command = command.command + "_reply";
+
+
+        for( const auto& sm_pair : command.args ){
+            response.args[sm_pair.first] = sm_pair.second + "_reply";
+        }
+
+        return response;
+    }
+};
+
+BOOST_AUTO_TEST_CASE( ChannelTest6 ){
+
+    ChannelProvider<Command,Command,Handler4> testChannel(1044);
+
+    int client_id = 100699;
+    testChannel.whitelist(client_id);
+
+    ChannelClient<Command,Command, Handler5> testClient(client_id, 1044);
+
+    Command command;
+    command.command = "purple";
+    command.args["pooh"] = "yellow";
+    command.args["bunny"] = "white";
+    command.args["kuma"] = "brown";
+
+    Command response = testClient.send( command);
+
+    BOOST_CHECK_EQUAL(  response.command, "purple_response" );
+
+    BOOST_CHECK_EQUAL(  response.args["pooh"], "yellow_resp");
+
+    command.command = "orange";
+    command.args["pooh"] = "yellow";
+    command.args["bunny"] = "white";
+    command.args["kuma"] = "brown";
+
+    response = testChannel.send( client_id, command);
+
+    BOOST_CHECK_EQUAL(  response.command, "orange_reply" );
+
+    BOOST_CHECK_EQUAL(  response.args["bunny"], "white_reply");
+
+    command.command = "purple";
+    command.args["pooh"] = "yellow";
+    command.args["bunny"] = "white";
+    command.args["kuma"] = "brown";
+
+    response = testClient.send( command);
+
+    BOOST_CHECK_EQUAL(  response.command, "purple_response" );
+
+    BOOST_CHECK_EQUAL(  response.args["pooh"], "yellow_resp");
+
+    command.command = "orange";
+    command.args["pooh"] = "yellow";
+    command.args["bunny"] = "white";
+    command.args["kuma"] = "brown";
+
+    response = testChannel.send( client_id, command);
+
+    BOOST_CHECK_EQUAL(  response.command, "orange_reply" );
+
+    BOOST_CHECK_EQUAL(  response.args["bunny"], "white_reply");
+
+}
 
 

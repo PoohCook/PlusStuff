@@ -8,7 +8,6 @@
 #ifndef Channel_H
 #define Channel_H
 
-#include "TcpServer.h"
 #include <iostream>
 #include <string>
 #include <thread>
@@ -19,10 +18,9 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
-
+#include "TcpServer.h"
 
 using namespace std;
-
 
 
 template< class C, class R, class H >
@@ -35,7 +33,7 @@ private:
     std::thread worker_thread;
     int buffer_size_;
 
-    void runIo(){
+    void run_io(){
         io_service.run();
     }
 
@@ -44,7 +42,7 @@ public:
         : server_(io_service, port),
           buffer_size_(buffer_size) {
 
-        worker_thread = std::thread(&ChannelProvider<C,R,H>::runIo, this);
+        worker_thread = std::thread(&ChannelProvider<C,R,H>::run_io, this);
 
     }
 
@@ -63,6 +61,12 @@ public:
 
     }
 
+    R send( int client_id, C command){
+        return server_.send( client_id, command);
+
+    }
+
+
 
 };
 
@@ -70,14 +74,14 @@ public:
 template< class C, class R >
 class NullHandler{
 public:
-    static R process(C command ){
+    R process(C command ){
        return R();
     }
 };
 
 
 template< class C, class R, class H = NullHandler<C,R> >
-class ChannelClient
+class ChannelClient : H
 {
 
 private:
@@ -89,7 +93,6 @@ private:
     int command_id_ = 1000;  //   arbitray start index for commnad ids
     int buffer_size_;
     std::vector<char> read_buffer_;
-    std::string write_buffer_;
 
     mutex response_mutex;
     condition_variable response_available;
@@ -98,11 +101,11 @@ private:
     R rcv_response_;
     C rcv_command_;
 
-    void runIo(){
+    void run_io(){
         io_service.run();
     }
 
-    bool attachSocket(int client_id){
+    bool attach_socket(int client_id){
         std::stringstream ss;
         boost::archive::text_oarchive oa(ss);
         CommandHeader header(MESSAGE_TYPE_ATTACH, client_id);
@@ -146,13 +149,13 @@ public:
           resolver.resolve(address, to_string(port));
 
         boost::asio::connect(socket_, endpoints);
-        if( attachSocket(client_id) ){
+        if( attach_socket(client_id) ){
             working_ = new boost::asio::io_service::work(io_service);
 
-            worker_thread = std::thread(&ChannelClient<C,R>::runIo, this);
+            worker_thread = std::thread(&ChannelClient<C,R,H>::run_io, this);
 
             socket_.async_read_some(boost::asio::buffer(read_buffer_, read_buffer_.size()),
-                boost::bind(&ChannelClient<C,R>::handleRead, this,
+                boost::bind(&ChannelClient<C,R,H>::handle_read, this,
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred));
         }
@@ -182,10 +185,8 @@ public:
         oa << header;
         oa << command ;
 
-        write_buffer_ = ss.str();
-
-        boost::asio::async_write(socket_,  boost::asio::buffer(write_buffer_),
-            boost::bind(&ChannelClient<C,R>::handleWrite, this,
+        boost::asio::async_write(socket_,  boost::asio::buffer(ss.str()),
+            boost::bind(&ChannelClient<C,R,H>::handle_write, this,
                 boost::asio::placeholders::error));
 
         //  await response
@@ -205,17 +206,17 @@ public:
 
     }
 
-    void handleWrite(const boost::system::error_code& error){
-        if (!error){
+private:
+
+    void handle_write(const boost::system::error_code& error){
+        if (error){
         }
     }
 
-
-    void handleRead(const boost::system::error_code& error, size_t bytes_transferred){
+    void handle_read(const boost::system::error_code& error, size_t bytes_transferred){
         if (!error){
             {
                 lock_guard<mutex> lock(response_mutex);
-
 
                 read_buffer_[bytes_transferred] = '\0';
 
@@ -224,7 +225,12 @@ public:
                 boost::archive::text_iarchive ia(sr);
 
                 ia >> rcv_header_;
-                ia >> rcv_response_;
+                if( rcv_header_.type == MESSAGE_TYPE_RESPONSE){
+                    ia >> rcv_response_;
+                }
+                else if( rcv_header_.type == MESSAGE_TYPE_COMMAND){
+                    ia >> rcv_command_;
+                }
             }
 
             if( rcv_header_.type == MESSAGE_TYPE_RESPONSE){
@@ -232,23 +238,31 @@ public:
             }
 
             else if( rcv_header_.type == MESSAGE_TYPE_COMMAND){
-                handleCommand();
+                handle_command();
             }
 
             socket_.async_read_some(boost::asio::buffer(read_buffer_, read_buffer_.size()),
-                boost::bind(&ChannelClient<C,R>::handleRead, this,
+                boost::bind(&ChannelClient<C,R,H>::handle_read, this,
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred));
-
-
 
         }
     }
 
-    void handleCommand(){
+    void handle_command(){
 
         ///  handler class must pocess this function
-        rcv_response_ = H::process( rcv_command_);
+        R response = H::process( rcv_command_);
+
+        std::stringstream ss;
+        boost::archive::text_oarchive oa(ss);
+        rcv_header_.type = MESSAGE_TYPE_RESPONSE;
+        oa << rcv_header_;
+        oa << response;
+
+        boost::asio::async_write(socket_,  boost::asio::buffer(ss.str()),
+            boost::bind(&ChannelClient<C,R,H>::handle_write, this,
+                boost::asio::placeholders::error));
 
     }
 

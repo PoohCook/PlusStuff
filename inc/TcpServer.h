@@ -30,7 +30,6 @@ typedef enum{
     MESSAGE_TYPE_ATTACHED
 } MessageType;
 
-
 class CommandHeader{
 public:
     MessageType type;
@@ -64,10 +63,17 @@ class TcpSession: H
 private:
     tcp::socket socket_;
     std::vector<char> read_buffer_;
-    std::string write_buffer_;
+
+    mutex response_mutex;
+    condition_variable response_available;
 
     int attached_client_id_ = 0;
     TcpServer<C,R,H>* parent_server;
+
+    int command_id_ = 5000;
+    CommandHeader rcv_header_;
+    R rcv_response_;
+    C rcv_command_;
 
 public:
     TcpSession(boost::asio::io_service& io_service, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE, TcpServer<C,R,H>* parent =  NULL)
@@ -116,7 +122,7 @@ public:
         }
 
         socket_.async_read_some( boost::asio::buffer(read_buffer_, read_buffer_.size()),
-            boost::bind(&TcpSession<C,R,H>::handleRead, this,
+            boost::bind(&TcpSession<C,R,H>::handle_read, this,
                 boost::asio::placeholders::error,
                 boost::asio::placeholders::bytes_transferred));
 
@@ -127,58 +133,103 @@ public:
         return attached_client_id_;
     }
 
-private:
-    void handleRead(const boost::system::error_code& error, size_t bytes_transferred){
-        if (!error){
-            read_buffer_[bytes_transferred] = '\0';
+    R send( C command){
 
-            std::stringstream sr;
-            sr << read_buffer_.data();
-            boost::archive::text_iarchive ia(sr);
-            CommandHeader header;
-            C command;
-
-            ia >> header;
-            ia >> command;
-
-            if( header.type == MESSAGE_TYPE_COMMAND){
-                handle_command(header, command);
-            }
-        }
-        else{
-            if( parent_server != NULL ) parent_server->detach(this);
-            delete this;
-        }
-    }
-
-    void handleWrite(const boost::system::error_code& error){
-        if (!error){
-            socket_.async_read_some(boost::asio::buffer(read_buffer_, read_buffer_.size()),
-                boost::bind(&TcpSession<C,R,H>::handleRead, this,
-                    boost::asio::placeholders::error,
-                    boost::asio::placeholders::bytes_transferred));
-        }
-        else{
-            if( parent_server != NULL ) parent_server->detach(this);
-            delete this;
-        }
-    }
-
-    void handle_command(CommandHeader header, C command ){
-
-        ///  handler class must pocess this function
-        R response = H::process( command);
+        int command_id = command_id_++;
+        CommandHeader header(MESSAGE_TYPE_COMMAND, command_id);
 
         std::stringstream ss;
         boost::archive::text_oarchive oa(ss);
-        header.type = MESSAGE_TYPE_RESPONSE;
+
         oa << header;
+        oa << command ;
+
+        boost::asio::async_write(socket_,  boost::asio::buffer(ss.str()),
+            boost::bind(&TcpSession<C,R,H>::handle_write, this,
+                boost::asio::placeholders::error));
+
+        //  await response
+        unique_lock<mutex> lock(response_mutex);
+        rcv_header_ = CommandHeader();
+        response_available.wait(lock, [this]{return rcv_header_.type == MESSAGE_TYPE_RESPONSE;});
+
+        if(  rcv_header_.type != MESSAGE_TYPE_RESPONSE ){
+            throw std::runtime_error("wrong messge type recieved on response");
+        }
+
+        if( command_id != rcv_header_.id){
+            throw std::runtime_error("wrong commnad id returned (" + to_string(command_id) + ") expected (" + to_string(rcv_header_.id) + ") returned");
+        }
+
+        return rcv_response_;
+
+    }
+
+
+private:
+    void handle_read(const boost::system::error_code& error, size_t bytes_transferred){
+        if (!error){
+
+            {
+                lock_guard<mutex> lock(response_mutex);
+
+                read_buffer_[bytes_transferred] = '\0';
+
+                std::stringstream sr;
+                sr << read_buffer_.data();
+                boost::archive::text_iarchive ia(sr);
+
+                ia >> rcv_header_;
+                if( rcv_header_.type == MESSAGE_TYPE_RESPONSE){
+                    ia >> rcv_response_;
+                }
+                else if( rcv_header_.type == MESSAGE_TYPE_COMMAND){
+                    ia >> rcv_command_;
+                }
+
+            }
+
+            if( rcv_header_.type == MESSAGE_TYPE_RESPONSE){
+                response_available.notify_all();
+            }
+
+            else if( rcv_header_.type == MESSAGE_TYPE_COMMAND){
+                handle_command();
+            }
+
+            socket_.async_read_some(boost::asio::buffer(read_buffer_, read_buffer_.size()),
+                boost::bind(&TcpSession<C,R,H>::handle_read, this,
+                    boost::asio::placeholders::error,
+                    boost::asio::placeholders::bytes_transferred));
+
+
+        }
+        else{
+            if( parent_server != NULL ) parent_server->detach(this);
+            delete this;
+        }
+    }
+
+    void handle_write(const boost::system::error_code& error){
+        if (error){
+            if( parent_server != NULL ) parent_server->detach(this);
+            delete this;
+        }
+    }
+
+    void handle_command( ){
+
+        ///  handler class must pocess this function
+        R response = H::process( rcv_command_);
+
+        std::stringstream ss;
+        boost::archive::text_oarchive oa(ss);
+        rcv_header_.type = MESSAGE_TYPE_RESPONSE;
+        oa << rcv_header_;
         oa << response;
 
-        write_buffer_ = ss.str();
-
-        boost::asio::async_write(socket_,  boost::asio::buffer(write_buffer_),
-            boost::bind(&TcpSession<C,R,H>::handleWrite, this,
+        boost::asio::async_write(socket_,  boost::asio::buffer(ss.str()),
+            boost::bind(&TcpSession<C,R,H>::handle_write, this,
                 boost::asio::placeholders::error));
 
     }
@@ -226,6 +277,18 @@ public:
     void whitelist( int id){
         whitelist_.push_back(id);
     }
+
+    R send( int client_id, C command){
+
+        auto session = get_attached_session( client_id);
+        if( session == NULL){
+            throw runtime_error("unknown session for client_id " + to_string(client_id));
+        }
+
+        return session->send( command);
+
+    }
+
 
 private:
 
@@ -275,6 +338,19 @@ private:
 
        return ( find( whitelist_.begin(), whitelist_.end(), id) != whitelist_.end());
 
+    }
+
+    TcpSession<C,R,H>* get_attached_session( int id){
+
+        TcpSession<C,R,H>* session = NULL;
+        for ( auto it = attached_sessions.begin() ; it != attached_sessions.end(); it++){
+            if( (*it)->attachedClientId() == id){
+                session = *it;
+                break;
+            }
+        }
+
+        return session;
     }
 
 };
