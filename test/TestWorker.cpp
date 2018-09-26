@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE( WorkerTest1 ){
     myWorker.shutdown(true);
 
 
-    BOOST_CHECK_EQUAL(  PrimeProcessor::primes.size(), 1230 );
+    BOOST_CHECK_EQUAL(  PrimeProcessor::primes.size(), 1230ul );
 
     BOOST_CHECK_EQUAL(  PrimeProcessor::primes[0], 1 );
 
