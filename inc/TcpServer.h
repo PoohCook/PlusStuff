@@ -89,7 +89,7 @@ public:
         boost::system::error_code error;
         size_t rlen = socket_.read_some(boost::asio::buffer(read_buffer_), error);
         if (error){
-            throw boost::system::system_error(error);
+            return false;
         }
 
         std::stringstream sr;
