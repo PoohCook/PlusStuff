@@ -71,8 +71,10 @@ private:
     TcpServer<C,R,H>* parent_server;
 
     int command_id_ = 5000;
-    CommandHeader rcv_header_;
+    CommandHeader rcv_response_header_;
     R rcv_response_;
+    
+    CommandHeader rcv_command_header_;
     C rcv_command_;
 
 public:
@@ -150,15 +152,11 @@ public:
 
         //  await response
         unique_lock<mutex> lock(response_mutex);
-        rcv_header_ = CommandHeader();
-        response_available.wait(lock, [this]{return rcv_header_.type == MESSAGE_TYPE_RESPONSE;});
+        rcv_response_header_ = CommandHeader();
+        response_available.wait(lock, [this]{return rcv_response_header_.type == MESSAGE_TYPE_RESPONSE;});
 
-        if(  rcv_header_.type != MESSAGE_TYPE_RESPONSE ){
-            throw std::runtime_error("wrong messge type recieved on response");
-        }
-
-        if( command_id != rcv_header_.id){
-            throw std::runtime_error("wrong commnad id returned (" + to_string(command_id) + ") expected (" + to_string(rcv_header_.id) + ") returned");
+        if( command_id != rcv_response_header_.id){
+            throw std::runtime_error("wrong command id in channel provider; expected(" + to_string(command_id) + ")  returned(" + to_string(rcv_response_header_.id) + ") ");
         }
 
         return rcv_response_;
@@ -170,6 +168,7 @@ private:
     void handle_read(const boost::system::error_code& error, size_t bytes_transferred){
         if (!error){
 
+            CommandHeader header;
             {
                 lock_guard<mutex> lock(response_mutex);
 
@@ -178,22 +177,24 @@ private:
                 std::stringstream sr;
                 sr << read_buffer_.data();
                 boost::archive::text_iarchive ia(sr);
-
-                ia >> rcv_header_;
-                if( rcv_header_.type == MESSAGE_TYPE_RESPONSE){
+                
+                ia >> header;
+                if( header.type == MESSAGE_TYPE_RESPONSE){
+                    rcv_response_header_ = header;
                     ia >> rcv_response_;
                 }
-                else if( rcv_header_.type == MESSAGE_TYPE_COMMAND){
+                else if( header.type == MESSAGE_TYPE_COMMAND){
+                    rcv_command_header_ = header;
                     ia >> rcv_command_;
                 }
 
             }
 
-            if( rcv_header_.type == MESSAGE_TYPE_RESPONSE){
+            if( header.type == MESSAGE_TYPE_RESPONSE){
                 response_available.notify_all();
             }
 
-            else if( rcv_header_.type == MESSAGE_TYPE_COMMAND){
+            else if( header.type == MESSAGE_TYPE_COMMAND){
                 handle_command();
             }
 
@@ -224,8 +225,8 @@ private:
 
         std::stringstream ss;
         boost::archive::text_oarchive oa(ss);
-        rcv_header_.type = MESSAGE_TYPE_RESPONSE;
-        oa << rcv_header_;
+        rcv_command_header_.type = MESSAGE_TYPE_RESPONSE;
+        oa << rcv_command_header_;
         oa << response;
 
         boost::asio::async_write(socket_,  boost::asio::buffer(ss.str()),

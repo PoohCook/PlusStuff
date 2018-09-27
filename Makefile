@@ -3,11 +3,9 @@ CPPFLAGS = -Wall -std=c++11 -pthread -iquote inc -I boostlib/inc
 LFLAGS = -Wall -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK -DBOOST_LOG_DYN_LINK
 BOOST = -Lboostlib/lib -lboost_unit_test_framework -lboost_system -lboost_serialization -lboost_wserialization -Wl,-rpath,'boostlib/lib'
 
-DEPS = inc/Worker.h inc/Channel.h inc/TcpServer.h
-OBJ = obj/Worker.o obj/TcpServer.o
-TEST = obj/TestMessageBuffer.o obj/TestWorker.o obj/TestChannel.o
-
-
+DEPS = inc/Worker.h inc/ChannelProvider.h inc/ChannelClient.h inc/TcpServer.h inc/IsPrime.h
+OBJ = obj/IsPrime.o
+TEST = obj/TestWorker.o obj/TestChannel.o obj/TestDuplexChannel.o
 
 obj/%.o: src/%.cpp $(DEPS)
 	mkdir -p obj
@@ -17,27 +15,15 @@ obj/%.o: test/%.cpp $(DEPS)
 	mkdir -p obj
 	$(CC) -c -o $@ $< $(CPPFLAGS)
 
-both: server client echo
-
-server: $(OBJ) src/Server.cpp
-	$(CC) -o $@  $^ -L /usr/lib -lboost_system -lpthread $(CPPFLAGS) $(LFLAGS)
-
-client: $(OBJ) src/Client.cpp
-	$(CC) -o $@  $^ -L /usr/lib -lboost_system -lpthread $(CPPFLAGS) $(LFLAGS)
-
-echo: $(OBJ) src/Echo.cpp
-	$(CC) -o $@  $^ -L /usr/lib -lboost_system -lpthread $(CPPFLAGS) $(LFLAGS)
-
-
 main: $(OBJ) src/main.cpp
 	$(CC) -o $@  $^ $(BOOST) $(CPPFLAGS) $(LFLAGS)
 
 
-test: testRunner main
+test: main testRunner
 	./testRunner
 
-testRunner: $(OBJ) $(TEST)
-	$(CC) -o $@ test/TestMain.cpp $^ -DBOOST_TEST_DYN_LINK $(BOOST)  $(CPPFLAGS) $(LFLAGS)
+testRunner: $(OBJ) $(TEST) test/TestMain.cpp
+	$(CC) -o $@  $^ -DBOOST_TEST_DYN_LINK $(BOOST)  $(CPPFLAGS) $(LFLAGS)
 
 boostlib:
 	rm -f /usr/lib/libboost*

@@ -6,14 +6,14 @@
  */
 
 
-#include <boost/test/unit_test.hpp>
-
-#include "Worker.h"
 #include <string>
 #include <iostream>
+#include <boost/test/unit_test.hpp>
+
+#include "IsPrime.h"
+#include "Worker.h"
 
 using namespace std;
-
 
 
 class PrimeProcessor{
@@ -28,16 +28,7 @@ public:
 
     //  required method to be used by a Worker class
     void  process(){
-        bool isPrime = true;
-
-        for(int divCandidate = 2; divCandidate<= myNumber/2; ++divCandidate)
-        {
-          if(myNumber % divCandidate == 0)
-          {
-              isPrime = false;
-              break;
-          }
-        }
+        bool isPrime = IsPrime(myNumber);
 
         if(isPrime){
             primes.push_back(myNumber);

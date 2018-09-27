@@ -12,7 +12,8 @@
 #include <boost/asio.hpp>
 #include <boost/serialization/map.hpp>
 #include <boost/serialization/string.hpp>
-#include "Channel.h"
+#include "ChannelProvider.h"
+#include "ChannelClient.h"
 
 using namespace std;
 
