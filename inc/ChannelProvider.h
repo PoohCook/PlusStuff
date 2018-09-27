@@ -18,7 +18,7 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
-#include "TcpSession.h"
+#include "ChannelProviderSession.h"
 
 using namespace std;
 
@@ -26,13 +26,13 @@ using namespace std;
 template< class C, class R, class H >
 class ChannelProvider
 {
-    friend class TcpSession<C,R,H>;
+    friend class ChannelProviderSession<C,R,H>;
 
 private:
     boost::asio::io_service io_service;
     tcp::acceptor acceptor_;
     int buffer_size_;
-    vector<TcpSession<C,R,H>*> attached_sessions;
+    vector<ChannelProviderSession<C,R,H>*> attached_sessions;
     vector<int>whitelist_ ;
 
     std::thread worker_thread;
@@ -89,14 +89,14 @@ public:
 private:
 
     void spawn_new_session(){
-        TcpSession<C,R,H>* new_session = new TcpSession<C,R,H>(io_service, buffer_size_, this);
+        ChannelProviderSession<C,R,H>* new_session = new ChannelProviderSession<C,R,H>(io_service, buffer_size_, this);
         acceptor_.async_accept(new_session->socket(),
             boost::bind(&ChannelProvider::handle_accept, this, new_session,
                 boost::asio::placeholders::error));
 
     }
 
-    void handle_accept(TcpSession<C,R,H>* new_session, const boost::system::error_code& error) {
+    void handle_accept(ChannelProviderSession<C,R,H>* new_session, const boost::system::error_code& error) {
 
         if (!error){
             if( new_session->startSession()){
@@ -113,7 +113,7 @@ private:
         }
     }
 
-    void detach(TcpSession<C,R,H>* session){
+    void detach(ChannelProviderSession<C,R,H>* session){
 
         auto to_detach = find(attached_sessions.begin(), attached_sessions.end(), session);
 
@@ -136,9 +136,9 @@ private:
 
     }
 
-    TcpSession<C,R,H>* get_attached_session( int id){
+    ChannelProviderSession<C,R,H>* get_attached_session( int id){
 
-        TcpSession<C,R,H>* session = NULL;
+        ChannelProviderSession<C,R,H>* session = NULL;
         for ( auto it = attached_sessions.begin() ; it != attached_sessions.end(); it++){
             if( (*it)->attachedClientId() == id){
                 session = *it;

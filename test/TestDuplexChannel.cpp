@@ -133,7 +133,9 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
 BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
 
-
+//    cout << "duplexing \n";
+//    PrimeChannelProcessor::primes.clear();
+//
 //    ChannelProvider<int,bool,PrimesHandler> testChannel(1033);
 //
 //    int client_id = 105289;
@@ -171,7 +173,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
 //    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
 //
 //    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
-//
+
 
 }
 

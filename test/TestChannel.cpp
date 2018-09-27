@@ -28,6 +28,7 @@ public:
 
 BOOST_AUTO_TEST_CASE( ChannelTest1 ){
 
+
     ChannelProvider<map<string,string>,int,Handler> testChannel(1028);
 
     int client_id = 105280;
