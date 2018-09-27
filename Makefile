@@ -3,7 +3,7 @@ CPPFLAGS = -Wall -std=c++11 -pthread -iquote inc -I boostlib/inc
 LFLAGS = -Wall -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK -DBOOST_LOG_DYN_LINK
 BOOST = -Lboostlib/lib -lboost_unit_test_framework -lboost_system -lboost_serialization -lboost_wserialization -Wl,-rpath,'boostlib/lib'
 
-DEPS = inc/Worker.h inc/ChannelProvider.h inc/ChannelClient.h inc/TcpServer.h inc/IsPrime.h
+DEPS = inc/Worker.h inc/ChannelProvider.h inc/ChannelClient.h inc/TcpSession.h inc/IsPrime.h
 OBJ = obj/IsPrime.o
 TEST = obj/TestWorker.o obj/TestChannel.o obj/TestDuplexChannel.o
 

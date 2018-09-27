@@ -18,7 +18,7 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
-#include "TcpServer.h"
+#include "TcpSession.h"
 
 using namespace std;
 

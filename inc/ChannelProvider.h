@@ -18,7 +18,7 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 #include <boost/array.hpp>
-#include "TcpServer.h"
+#include "TcpSession.h"
 
 using namespace std;
 
@@ -26,12 +26,16 @@ using namespace std;
 template< class C, class R, class H >
 class ChannelProvider
 {
+    friend class TcpSession<C,R,H>;
 
 private:
     boost::asio::io_service io_service;
-    TcpServer<C,R,H> server_;
-    std::thread worker_thread;
+    tcp::acceptor acceptor_;
     int buffer_size_;
+    vector<TcpSession<C,R,H>*> attached_sessions;
+    vector<int>whitelist_ ;
+
+    std::thread worker_thread;
 
     void run_io(){
         io_service.run();
@@ -39,33 +43,111 @@ private:
 
 public:
     ChannelProvider(short port, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
-        : server_(io_service, port),
-          buffer_size_(buffer_size) {
+        : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)),
+        buffer_size_(buffer_size) {
+
+        spawn_new_session();
 
         worker_thread = std::thread(&ChannelProvider<C,R,H>::run_io, this);
 
     }
 
     ~ChannelProvider(){
-        server_.close();
+        acceptor_.cancel();
+        acceptor_.close();
+        for( auto it = attached_sessions.begin() ; it != attached_sessions.end() ; it++ ){
+            delete *it;
+        }
         worker_thread.join();
     }
 
     vector<int> attachedSessionIds(){
-        return server_.attachedSessionIds();
+        vector<int> attached_ids;
+        for ( auto it = attached_sessions.begin() ; it != attached_sessions.end() ; it++ ){
+            attached_ids.push_back( (*it)->attachedClientId() );
+        }
+
+        return attached_ids;
 
     }
 
     void whitelist(int id){
-        server_.whitelist(id);
+        whitelist_.push_back(id);
 
     }
 
     R send( int client_id, C command){
-        return server_.send( client_id, command);
+        auto session = get_attached_session( client_id);
+        if( session == NULL){
+            throw runtime_error("unknown session for client_id " + to_string(client_id));
+        }
+
+        return session->send( command);
 
     }
 
+private:
+
+    void spawn_new_session(){
+        TcpSession<C,R,H>* new_session = new TcpSession<C,R,H>(io_service, buffer_size_, this);
+        acceptor_.async_accept(new_session->socket(),
+            boost::bind(&ChannelProvider::handle_accept, this, new_session,
+                boost::asio::placeholders::error));
+
+    }
+
+    void handle_accept(TcpSession<C,R,H>* new_session, const boost::system::error_code& error) {
+
+        if (!error){
+            if( new_session->startSession()){
+                attached_sessions.push_back(new_session);
+            }
+            else{
+                delete new_session;
+            }
+
+            spawn_new_session();
+        }
+        else{
+            delete new_session;
+        }
+    }
+
+    void detach(TcpSession<C,R,H>* session){
+
+        auto to_detach = find(attached_sessions.begin(), attached_sessions.end(), session);
+
+        if (to_detach != attached_sessions.end())
+        {
+            // session is multipurpose so let him delete himself
+           //delete *to_detach ;
+
+           attached_sessions.erase(to_detach);
+
+        }
+
+    }
+
+    bool authorise_attach( int id){
+        //  empty whitelist means all authorizations are valid
+        if( whitelist_.empty() ) return true;
+
+       return ( find( whitelist_.begin(), whitelist_.end(), id) != whitelist_.end());
+
+    }
+
+    TcpSession<C,R,H>* get_attached_session( int id){
+
+        TcpSession<C,R,H>* session = NULL;
+        for ( auto it = attached_sessions.begin() ; it != attached_sessions.end(); it++){
+            if( (*it)->attachedClientId() == id){
+                session = *it;
+                break;
+            }
+        }
+
+        return session;
+    }
 
 
 };
