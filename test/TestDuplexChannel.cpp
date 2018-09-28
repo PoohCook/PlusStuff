@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
     Worker<PrimeChannelProcessor> myWorker;
 
-    for ( int indx = 1 ; indx < 10000 ; indx++ ){
+    for ( int indx = 1 ; indx < 1000 ; indx++ ){
         myWorker.push(PrimeChannelProcessor(indx, &testChannel, NULL, client_id));
     }
 
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
     sort( PrimeChannelProcessor::primes.begin(), PrimeChannelProcessor::primes.end() );
 
-    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 1230ul );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 169ul );
 
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[0], 1 );
 
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[24], 89 );
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
 
-    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
+    //BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
 
 
 }
@@ -172,11 +172,11 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
     Worker<PrimeChannelProcessor> myWorker;
     Worker<PrimeChannelProcessor> myWorker2;
 
-    for ( int indx = 1 ; indx < 5000 ; indx++ ){
+    for ( int indx = 1 ; indx < 1000 ; indx++ ){
         myWorker.push(PrimeChannelProcessor(indx, &testChannel, NULL, client_id));
     }
 
-    for ( int indx = 5000 ; indx < 10000 ; indx++ ){
+    for ( int indx = 1000 ; indx < 2000 ; indx++ ){
         myWorker2.push(PrimeChannelProcessor(indx, NULL, &testClient, 0));
     }
 
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
 
     sort( PrimeChannelProcessor::primes.begin(), PrimeChannelProcessor::primes.end() );
 
-    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 1230ul );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 304ul );
 
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[0], 1 );
 
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[24], 89 );
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
 
-    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
+    //BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
 
 
 }
