@@ -119,6 +119,7 @@ mutex PrimeChannelProcessor::vector_mutex;
 
 BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
+    cout << "long run\n";
 
     ChannelProvider<int,bool,PrimesHandler> testChannel(1036);
 
