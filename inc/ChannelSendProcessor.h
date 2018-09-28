@@ -15,6 +15,7 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
+#include "Logger.h"
 
 
 using namespace std;
@@ -153,10 +154,8 @@ private:
     void write_data (string send_data, CommandHeader header ){
 
         lock_guard<mutex> lock(write_mutex);
-#ifdef DIAG_MESSAGES
-        string msg =  string("write start: ") + header.str() + "\n";
-        cout << msg;
-#endif
+         LogMessage(string("write start: ") + header.str() );
+
 //        unique_lock<mutex> lock(write_mutex);
 //        write_in_progress.wait(lock, [this]{return !write_in_progress_flag;});
 //
@@ -173,10 +172,7 @@ private:
             handle_comm_error(error);
         }
 
-#ifdef DIAG_MESSAGES
-        msg =  string("write end: ") + header.str() + "\n";
-        cout << msg;
-#endif
+        LogMessage(string("write end: ") + header.str() );
 
     }
 
@@ -188,9 +184,9 @@ private:
 //        }
 //
 //        write_in_progress.notify_all();
-//#ifdef DIAG_MESSAGES
-//        cout << "write unlocked\n";
-//#endif
+//
+//        LogMessage("write unlocked");
+//
 //        if (!error){
 //
 //        }
@@ -232,10 +228,7 @@ private:
                 lock_guard<mutex> lock(response_mutex);
 
 
-#ifdef DIAG_MESSAGES
-                string msg =  string(message) + "\n";
-                cout << msg;
-#endif
+                LogMessage(  string(message)  );
 
                 std::stringstream sr;
                 sr << message;

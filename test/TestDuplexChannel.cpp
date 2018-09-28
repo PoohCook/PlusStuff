@@ -17,9 +17,7 @@ class PrimesHandler{
 public:
     bool process( int candidate ){
 
-#ifdef DIAG_MESSAGES
-        cout << "is handling: " << candidate << std::endl;
-#endif
+    LogMessage( "is handling: " + to_string(candidate) );
        return IsPrime( candidate );
 
     }
@@ -80,28 +78,16 @@ public:
     void  process(){
         bool isPrime = false;
         if( testChannel_ != NULL){
-#ifdef DIAG_MESSAGES
-            string msg = "sending channel: " + to_string(myNumber_) + "\n";
-            cout << msg;
-#endif
+            LogMessage("sending channel: " + to_string(myNumber_) );
             isPrime = testChannel_->send(client_id_, myNumber_);
 
-#ifdef DIAG_MESSAGES
-            msg = "done channel: " + to_string(myNumber_) + "\n";
-            cout << msg;
-#endif
+            LogMessage("done channel: " + to_string(myNumber_) );
         }
         else if( testClient_ != NULL ){
-#ifdef DIAG_MESSAGES
-            string msg = "sending client: " + to_string(myNumber_) + "\n";
-            cout << msg;
-#endif
+            LogMessage("sending client: " + to_string(myNumber_) );
             isPrime = testClient_->send(myNumber_);
 
-#ifdef DIAG_MESSAGES
-            msg = "done client: " + to_string(myNumber_) + "\n";
-            cout << msg;
-#endif
+            LogMessage("done client: " + to_string(myNumber_) );
         }
 
         if(isPrime){
@@ -129,7 +115,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
     Worker<PrimeChannelProcessor> myWorker;
 
-    for ( int indx = 1 ; indx < 1000 ; indx++ ){
+    for ( int indx = 1 ; indx < 10000 ; indx++ ){
         myWorker.push(PrimeChannelProcessor(indx, &testChannel, NULL, client_id));
     }
 
@@ -140,7 +126,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
     sort( PrimeChannelProcessor::primes.begin(), PrimeChannelProcessor::primes.end() );
 
-    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 169ul );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 1230ul );
 
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[0], 1 );
 
@@ -152,7 +138,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[24], 89 );
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
 
-    //BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
 
 
 }
@@ -172,11 +158,11 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
     Worker<PrimeChannelProcessor> myWorker;
     Worker<PrimeChannelProcessor> myWorker2;
 
-    for ( int indx = 1 ; indx < 1000 ; indx++ ){
+    for ( int indx = 1 ; indx < 5000 ; indx++ ){
         myWorker.push(PrimeChannelProcessor(indx, &testChannel, NULL, client_id));
     }
 
-    for ( int indx = 1000 ; indx < 2000 ; indx++ ){
+    for ( int indx = 5000 ; indx < 10000 ; indx++ ){
         myWorker2.push(PrimeChannelProcessor(indx, NULL, &testClient, 0));
     }
 
@@ -187,7 +173,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
 
     sort( PrimeChannelProcessor::primes.begin(), PrimeChannelProcessor::primes.end() );
 
-    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 304ul );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 1230ul );
 
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[0], 1 );
 
@@ -199,7 +185,7 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[24], 89 );
     BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
 
-    //BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
 
 
 }
