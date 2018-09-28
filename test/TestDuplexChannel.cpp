@@ -17,6 +17,9 @@ class PrimesHandler{
 public:
     bool process( int candidate ){
 
+#ifdef DIAG_MESSAGES
+        cout << "is handling: " << candidate << std::endl;
+#endif
        return IsPrime( candidate );
 
     }
@@ -58,6 +61,8 @@ class PrimeChannelProcessor{
     ChannelClient<int,bool,PrimesHandler>* testClient_ = NULL;
     int client_id_ = 0;
 
+    static mutex vector_mutex;
+
 public:
     static vector<int> primes;
 
@@ -75,13 +80,32 @@ public:
     void  process(){
         bool isPrime = false;
         if( testChannel_ != NULL){
+#ifdef DIAG_MESSAGES
+            string msg = "sending channel: " + to_string(myNumber_) + "\n";
+            cout << msg;
+#endif
             isPrime = testChannel_->send(client_id_, myNumber_);
+
+#ifdef DIAG_MESSAGES
+            msg = "done channel: " + to_string(myNumber_) + "\n";
+            cout << msg;
+#endif
         }
         else if( testClient_ != NULL ){
+#ifdef DIAG_MESSAGES
+            string msg = "sending client: " + to_string(myNumber_) + "\n";
+            cout << msg;
+#endif
             isPrime = testClient_->send(myNumber_);
+
+#ifdef DIAG_MESSAGES
+            msg = "done client: " + to_string(myNumber_) + "\n";
+            cout << msg;
+#endif
         }
 
         if(isPrime){
+            lock_guard<mutex> lock(vector_mutex);
             primes.push_back(myNumber_);
             //cout << myNumber_ << ", ";
         }
@@ -90,14 +114,16 @@ public:
 };
 
 vector<int> PrimeChannelProcessor::primes = vector<int>();
+mutex PrimeChannelProcessor::vector_mutex;
+
 
 BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
 
-    ChannelProvider<int,bool,PrimesHandler> testChannel(1033);
+    ChannelProvider<int,bool,PrimesHandler> testChannel(1036);
 
     int client_id = 105289;
-    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1033);
+    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1036);
 
 
     Worker<PrimeChannelProcessor> myWorker;
@@ -133,46 +159,46 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
 BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
 
-//    cout << "duplexing \n";
-//    PrimeChannelProcessor::primes.clear();
-//
-//    ChannelProvider<int,bool,PrimesHandler> testChannel(1033);
-//
-//    int client_id = 105289;
-//    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1033);
-//
-//
-//    Worker<PrimeChannelProcessor> myWorker;
-//    Worker<PrimeChannelProcessor> myWorker2;
-//
-//    for ( int indx = 1 ; indx < 5000 ; indx++ ){
-//        myWorker.push(PrimeChannelProcessor(indx, &testChannel, NULL, client_id));
-//    }
-//
-//    for ( int indx = 5000 ; indx < 10000 ; indx++ ){
-//        myWorker2.push(PrimeChannelProcessor(indx, NULL, &testClient, 0));
-//    }
-//
-//    //cout << "shutting down\n";
-//    myWorker.shutdown(true);
-//    myWorker2.shutdown(true);
-//
-//
-//    sort( PrimeChannelProcessor::primes.begin(), PrimeChannelProcessor::primes.end() );
-//
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 1230ul );
-//
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[0], 1 );
-//
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[2], 3 );
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[3], 5 );
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[4], 7 );
-//
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[23], 83 );
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[24], 89 );
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
-//
-//    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
+    PrimeChannelProcessor::primes.clear();
+    cout << "duplexing\n";
+
+    ChannelProvider<int,bool,PrimesHandler> testChannel(1077);
+
+    int client_id = 105289;
+    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1077);
+
+
+    Worker<PrimeChannelProcessor> myWorker;
+    Worker<PrimeChannelProcessor> myWorker2;
+
+    for ( int indx = 1 ; indx < 5000 ; indx++ ){
+        myWorker.push(PrimeChannelProcessor(indx, &testChannel, NULL, client_id));
+    }
+
+    for ( int indx = 5000 ; indx < 10000 ; indx++ ){
+        myWorker2.push(PrimeChannelProcessor(indx, NULL, &testClient, 0));
+    }
+
+    //cout << "shutting down\n";
+    myWorker.shutdown(true);
+    myWorker2.shutdown(true);
+
+
+    sort( PrimeChannelProcessor::primes.begin(), PrimeChannelProcessor::primes.end() );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 1230ul );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[0], 1 );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[2], 3 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[3], 5 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[4], 7 );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[23], 83 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[24], 89 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
 
 
 }

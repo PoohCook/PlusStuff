@@ -39,6 +39,7 @@ private:
         CommandHeader header(MESSAGE_TYPE_ATTACH, client_id);
 
         oa << header ;
+        ss << ";";
 
         boost::system::error_code error;
         ChannelSendProcessor<C,R,H>::socket_.write_some(boost::asio::buffer(ss.str()), error);
@@ -67,8 +68,9 @@ private:
 
 
 public:
-    ChannelClientSession(boost::asio::io_service& io_service, int client_id, short port, string address = "127.0.0.1", int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
-        : ChannelSendProcessor<C,R,H>(io_service, buffer_size),
+    ChannelClientSession(boost::asio::io_service& io_service, int client_id, short port, string address = "127.0.0.1",
+        int initial_command_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
+            : ChannelSendProcessor<C,R,H>(io_service, initial_command_id, buffer_size),
           buffer_size_(buffer_size),
           read_buffer_(buffer_size)  {
 

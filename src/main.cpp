@@ -12,6 +12,7 @@ using namespace std;
 void work_for_io_service(const boost::system::error_code& /*e*/, int number)
 {
   std::cout << "Non-blocking wait("<< number <<") \n";
+
 }
 
 int main()
@@ -35,6 +36,7 @@ int main()
   // the callback function, work_for_io_service(), will be called
   // from the thread where io.run() is running.
   io.run();
+
 
   return 0;
 }

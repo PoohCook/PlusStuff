@@ -34,8 +34,10 @@ private:
     ChannelProvider<C,R,H>* parent_server;
 
 public:
-    ChannelProviderSession(boost::asio::io_service& io_service, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE, ChannelProvider<C,R,H>* parent =  NULL)
-        : ChannelSendProcessor<C,R,H>(io_service, buffer_size), read_buffer_(buffer_size), parent_server(parent){
+    ChannelProviderSession(boost::asio::io_service& io_service, int initial_command_id = 1000,
+        int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE, ChannelProvider<C,R,H>* parent =  NULL)
+        : ChannelSendProcessor<C,R,H>(io_service, initial_command_id, buffer_size ),
+          read_buffer_(buffer_size), parent_server(parent){
     }
 
     tcp::socket& socket(){
@@ -73,6 +75,7 @@ public:
         header.type = MESSAGE_TYPE_ATTACHED;
 
         oa << header ;
+        ss << ";";
 
         ChannelSendProcessor<C,R,H>::socket_.write_some(boost::asio::buffer(ss.str()), error);
         if (error){

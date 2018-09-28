@@ -46,7 +46,7 @@ public:
         : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)),
         buffer_size_(buffer_size) {
 
-        spawn_new_session();
+         spawn_new_session();
 
         worker_thread = std::thread(&ChannelProvider<C,R,H>::run_io, this);
 
@@ -89,7 +89,7 @@ public:
 private:
 
     void spawn_new_session(){
-        ChannelProviderSession<C,R,H>* new_session = new ChannelProviderSession<C,R,H>(io_service, buffer_size_, this);
+        ChannelProviderSession<C,R,H>* new_session = new ChannelProviderSession<C,R,H>(io_service, 4000, buffer_size_, this);
         acceptor_.async_accept(new_session->socket(),
             boost::bind(&ChannelProvider::handle_accept, this, new_session,
                 boost::asio::placeholders::error));

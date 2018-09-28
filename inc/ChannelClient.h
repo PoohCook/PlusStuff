@@ -44,8 +44,8 @@ private:
     ChannelClientSession<C,R,H> session_;
 
 public:
-    ChannelClient(int client_id, short port, string address = "127.0.0.1", int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
-    : io_service(), session_( io_service, client_id, port, address , buffer_size) {
+    ChannelClient(int client_id, short port, string address = "127.0.0.1", int initial_client_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
+    : io_service(), session_( io_service, client_id, port, address , initial_client_id, buffer_size) {
 
         working_ = new boost::asio::io_service::work(io_service);
         worker_thread = std::thread(&ChannelClient<C,R,H>::run_io, this);

@@ -52,6 +52,10 @@ public:
         ar & id;
     }
 
+    string str(){
+        return to_string(id) + ":" + to_string(type);
+    }
+
 };
 
 
@@ -63,12 +67,17 @@ protected:
     tcp::socket socket_;
 
 private:
+    boost::asio::io_service& io_service;
+    int buffer_size_;
     std::vector<char> read_buffer_;
-    mutex sync_mutex;
+
+    mutex write_mutex;
     mutex response_mutex;
     condition_variable response_available;
+    condition_variable write_in_progress;
+    bool write_in_progress_flag = false;
 
-    int command_id_ = 5000;
+    int command_id_;
     CommandHeader rcv_response_header_;
     R rcv_response_;
 
@@ -89,10 +98,9 @@ public:
 
             oa << header;
             oa << command ;
+            ss << ";";
 
-            boost::asio::async_write(socket_,  boost::asio::buffer(ss.str()),
-                boost::bind(&ChannelSendProcessor<C,R,H>::handle_write, this,
-                    boost::asio::placeholders::error));
+            write_data(ss.str(), header);
 
             //  await response
             unique_lock<mutex> lock(response_mutex);
@@ -115,15 +123,16 @@ public:
     }
 
 protected:
-    ChannelSendProcessor(boost::asio::io_service& io_service, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
-        : socket_(io_service), read_buffer_(buffer_size){
+    ChannelSendProcessor(boost::asio::io_service& io_service, int initial_command_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
+        : socket_(io_service), io_service(io_service), buffer_size_(buffer_size), read_buffer_(buffer_size),
+        command_id_(initial_command_id) {
     }
 
     virtual ~ChannelSendProcessor(){
     }
 
     void startRecieving(){
-        lock_guard<mutex> lock(sync_mutex);
+        lock_guard<mutex> lock(write_mutex);
 
         socket_.async_receive( boost::asio::buffer(read_buffer_, read_buffer_.size()),
             boost::bind(&ChannelSendProcessor<C,R,H>::handle_read, this,
@@ -140,49 +149,74 @@ protected:
 
 
 private:
+
+    void write_data (string send_data, CommandHeader header ){
+
+        lock_guard<mutex> lock(write_mutex);
+#ifdef DIAG_MESSAGES
+        string msg =  string("write start: ") + header.str() + "\n";
+        cout << msg;
+#endif
+//        unique_lock<mutex> lock(write_mutex);
+//        write_in_progress.wait(lock, [this]{return !write_in_progress_flag;});
+//
+//        write_in_progress_flag = true;
+//        cout << "write locked\n";
+//
+//        boost::asio::async_write(socket_,  boost::asio::buffer(send_data),
+//            boost::bind(&ChannelSendProcessor<C,R,H>::handle_write, this,
+//                boost::asio::placeholders::error));
+
+        boost::system::error_code error;
+        ChannelSendProcessor<C,R,H>::socket_.write_some(boost::asio::buffer(send_data), error);
+        if (error){
+            handle_comm_error(error);
+        }
+
+#ifdef DIAG_MESSAGES
+        msg =  string("write end: ") + header.str() + "\n";
+        cout << msg;
+#endif
+
+    }
+
+//    void handle_write(const boost::system::error_code& error){
+//
+//        {
+//            lock_guard<mutex> lock(write_mutex);
+//            write_in_progress_flag = false;
+//        }
+//
+//        write_in_progress.notify_all();
+//#ifdef DIAG_MESSAGES
+//        cout << "write unlocked\n";
+//#endif
+//        if (!error){
+//
+//        }
+//        else{
+//            handle_comm_error(error);
+//        }
+//    }
+
+
     void handle_read(const boost::system::error_code& error, size_t bytes_transferred){
 
         if (!error){
-            try{
-                CommandHeader header;
-                {
-                    lock_guard<mutex> lock(response_mutex);
+            read_buffer_[bytes_transferred] = '\0';
 
-                    read_buffer_[bytes_transferred] = '\0';
-
-                    std::stringstream sr;
-                    sr << read_buffer_.data();
-                    boost::archive::text_iarchive ia(sr);
-
-                    ia >> header;
-                    if( header.type == MESSAGE_TYPE_RESPONSE){
-                        rcv_response_header_ = header;
-                        ia >> rcv_response_;
-                    }
-                    else if( header.type == MESSAGE_TYPE_COMMAND){
-                        rcv_command_header_ = header;
-                        ia >> rcv_command_;
-                    }
-
-                }
-
-                if( header.type == MESSAGE_TYPE_RESPONSE){
-                    response_available.notify_all();
-                }
-
-                else if( header.type == MESSAGE_TYPE_COMMAND){
-                    handle_command();
-                }
-
-                socket_.async_receive(boost::asio::buffer(read_buffer_, read_buffer_.size()),
-                    boost::bind(&ChannelSendProcessor<C,R,H>::handle_read, this,
-                        boost::asio::placeholders::error,
-                        boost::asio::placeholders::bytes_transferred));
-
-           }catch(boost::archive::archive_exception err ){
-                cout << "caught2: " << err.what() <<  "read_buffer: " << read_buffer_.data() << std::endl;
+            //  this needs some splaining... for reasons that that seemingly can't be locked away,
+            //  the results of a boost asio async read can often have multiple read messsages concatinated
+            //  together into one...  This only occurs when multiple threads are involved calling from
+            //  client and provider. This stops the down stream problem by parsing themback out based upon
+            //  a semicolon added at serilization time...
+            std::stringstream ss(read_buffer_.data());
+            std::string message;
+            while (std::getline(ss, message, ';')) {
+                handle_archive_message(message);
             }
 
+            startRecieving();
 
         }
         else{
@@ -190,10 +224,50 @@ private:
         }
     }
 
-    void handle_write(const boost::system::error_code& error){
-        if (error){
-            handle_comm_error(error);
+
+    void handle_archive_message(string message){
+        try{
+            CommandHeader header;
+            {
+                lock_guard<mutex> lock(response_mutex);
+
+
+#ifdef DIAG_MESSAGES
+                string msg =  string(message) + "\n";
+                cout << msg;
+#endif
+
+                std::stringstream sr;
+                sr << message;
+                boost::archive::text_iarchive ia(sr);
+
+                ia >> header;
+                if( header.type == MESSAGE_TYPE_RESPONSE){
+                    rcv_response_header_ = header;
+                    ia >> rcv_response_;
+                }
+                else if( header.type == MESSAGE_TYPE_COMMAND){
+                    rcv_command_header_ = header;
+                    ia >> rcv_command_;
+                }
+
+            }
+
+            if( header.type == MESSAGE_TYPE_RESPONSE){
+                response_available.notify_all();
+            }
+
+            else if( header.type == MESSAGE_TYPE_COMMAND){
+                handle_command();
+            }
+
+
+       }catch(boost::archive::archive_exception err ){
+            cout << "caught2: " << err.what() << std::endl;
         }
+
+
+
     }
 
     void handle_command( ){
@@ -206,10 +280,9 @@ private:
         rcv_command_header_.type = MESSAGE_TYPE_RESPONSE;
         oa << rcv_command_header_;
         oa << response;
+        ss << ";";
 
-        boost::asio::async_write(socket_,  boost::asio::buffer(ss.str()),
-            boost::bind(&ChannelSendProcessor<C,R,H>::handle_write, this,
-                boost::asio::placeholders::error));
+        write_data(ss.str(), rcv_command_header_);
 
     }
 
