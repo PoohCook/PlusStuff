@@ -19,5 +19,7 @@
 #endif
 
 
+#define LogMessageX(msg) (cout << string(msg) << "\n")
+
 #endif   // Logger_H
 

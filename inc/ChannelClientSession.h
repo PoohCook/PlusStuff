@@ -34,7 +34,7 @@ private:
 
 
     bool attach_socket(int client_id){
-        std::stringstream ss;
+         std::stringstream ss;
         boost::archive::text_oarchive oa(ss);
         CommandHeader header(MESSAGE_TYPE_ATTACH, client_id);
 

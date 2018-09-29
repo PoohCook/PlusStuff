@@ -97,12 +97,8 @@ private:
     }
 
     void handle_accept(ChannelProviderSession<C,R,H>* new_session, const boost::system::error_code& error) {
-
         if (!error){
-            if( new_session->startSession()){
-                attached_sessions.push_back(new_session);
-            }
-            else{
+            if( !new_session->startSession()){
                 delete new_session;
             }
 
@@ -128,11 +124,13 @@ private:
 
     }
 
-    bool authorise_attach( int id){
+    bool authorise_attach( int client_id, ChannelProviderSession<C,R,H>* session){
         //  empty whitelist means all authorizations are valid
-        if( whitelist_.empty() ) return true;
+       bool authorized =  whitelist_.empty() || ( find( whitelist_.begin(), whitelist_.end(), client_id) != whitelist_.end());
 
-       return ( find( whitelist_.begin(), whitelist_.end(), id) != whitelist_.end());
+       if(authorized) attached_sessions.push_back(session);
+
+       return authorized;
 
     }
 

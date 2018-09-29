@@ -84,6 +84,7 @@ BOOST_AUTO_TEST_CASE( ChannelTest2 ){
 
     BOOST_CHECK_EQUAL(  retVal, "yellow:red:brown" );
 
+
 }
 
 
@@ -96,6 +97,7 @@ public:
 
 BOOST_AUTO_TEST_CASE( ChannelTest3 ){
 
+    cout << "begin here\n";
 
     ChannelProvider<int,int,Handler3> testChannel(1034);
 

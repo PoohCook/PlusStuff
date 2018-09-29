@@ -20,7 +20,7 @@ main: $(OBJ) src/main.cpp
 	$(CC) -o $@  $^ $(BOOST) $(CPPFLAGS) $(LFLAGS)
 
 
-test: main testRunner
+test: testRunner
 	./testRunner
 
 testRunner: $(OBJ) $(TEST) test/TestMain.cpp

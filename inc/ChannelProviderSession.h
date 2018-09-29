@@ -64,7 +64,7 @@ public:
             return false;
         }
 
-        if( parent_server != NULL && !parent_server->authorise_attach(header.id)){
+        if( parent_server != NULL && !parent_server->authorise_attach(header.id, this)){
             return false;
         }
 
