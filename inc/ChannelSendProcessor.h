@@ -21,7 +21,7 @@
 using namespace std;
 using boost::asio::ip::tcp;
 
-#define DEFAULT_TCP_SESSION_BUFFER_SIZE  1024
+#define DEFAULT_TCP_SESSION_BUFFER_SIZE  4096
 
 typedef enum{
     MESSAGE_TYPE_WAITING = 0,

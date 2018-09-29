@@ -1,9 +1,23 @@
-/*
- * File:   ChannelProvider.h
- * Author: Pooh
- *
- * Created on September 18, 2018, 4:09 PM
- */
+ /**
+  * @file ChannelProvider.h
+  * @author  Pooh Cook
+  * @version 1.0
+  * @created September 18, 2018, 4:09 PM
+  *
+  * @section LICENSE
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU General Public License as
+  * published by the Free Software Foundation; either version 2 of
+  * the License, or (at your option) any later version.
+  *
+  * This program is distributed in the hope that it will be useful, but
+  * WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  * General Public License for more details at
+  * https://www.gnu.org/copyleft/gpl.html
+  *
+  */
 
 #ifndef ChannelProvider_H
 #define ChannelProvider_H
@@ -22,10 +36,21 @@
 
 using namespace std;
 
-
+/**
+ * @class ChannelProvider
+ * @brief Create a TCP Channel sever that can be connected to by ChannelClient instances
+ *
+ * provides a channel server instance that can be connected to by ChannelClient instances using TCP protocol.
+ * The server is constructed specifying C (command), R (response), and H (handler) types and can be used to both
+ * send/receive with a specific client and handle send/receive exchanges from clients.
+ * An integer client_id is expected from clients as they connect. A whitelist can be setup on the ChannelProvider to
+ * exclude un registered clients or accept any client if not setup.
+ *
+ */
 template< class C, class R, class H >
 class ChannelProvider
 {
+    // the provider session uses a private method to call back to the provider to do authorization and registration
     friend class ChannelProviderSession<C,R,H>;
 
 private:
@@ -37,11 +62,17 @@ private:
 
     std::thread worker_thread;
 
-    void run_io(){
-        io_service.run();
-    }
 
 public:
+    /**
+     * Constructor for creating a ClientProvider instance connected to a port number
+     *
+     * @param port specifies the port number of the channel
+     * @param buffer_size defines the size of the channel buffers for TCP messages.  This is the max serialization size
+     *          for the command or response object. The serialization size is determined by boost serialization libraries.
+     *          default is 4096 chars
+     *
+     */
     ChannelProvider(short port, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
         : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)),
         buffer_size_(buffer_size) {
@@ -61,7 +92,13 @@ public:
         worker_thread.join();
     }
 
-    vector<int> attachedSessionIds(){
+    /**
+     * returns a list currently attached client ids
+     *
+     * @return an std::vector<int> containing all currently attached client ids
+     *
+     */
+    vector<int> attachedClientIds(){
         vector<int> attached_ids;
         for ( auto it = attached_sessions.begin() ; it != attached_sessions.end() ; it++ ){
             attached_ids.push_back( (*it)->attachedClientId() );
@@ -71,11 +108,32 @@ public:
 
     }
 
-    void whitelist(int id){
-        whitelist_.push_back(id);
+    /**
+     * Add a client id to the current whitelist
+     *
+     * Note: if the whitelist is empty, then all clients will be allowed ot connect. If any client_ids are added to the
+     * whitelist, then only those client_ids will be allowed to connect.
+     *
+     * @param client_id  the id of the client to be whitelisted
+     *
+     */
+    void whitelist(int client_id){
+        whitelist_.push_back(client_id);
 
     }
 
+    /**
+     * Synchronous send and receive method
+     *
+     * Command is serialized and sent to the ChannelClient identified by client_id and then a Serialized response is
+     * awaited. Response is then deserialized and returned to the caller.
+     *
+     * @param client_id is a the client id of the ChannelClient to be sent to
+     * @param command is a class of type C (command) as defined in the templated instance
+     *
+     * @return a class of type R (response) as defined by the templated instance
+     *
+     */
     R send( int client_id, C command){
         auto session = get_attached_session( client_id);
         if( session == NULL){
@@ -87,6 +145,9 @@ public:
     }
 
 private:
+    void run_io(){
+        io_service.run();
+    }
 
     void spawn_new_session(){
         ChannelProviderSession<C,R,H>* new_session = new ChannelProviderSession<C,R,H>(io_service, 4000, buffer_size_, this);

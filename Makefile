@@ -26,6 +26,9 @@ test: testRunner
 testRunner: $(OBJ) $(TEST) test/TestMain.cpp
 	$(CC) -o $@  $^ -DBOOST_TEST_DYN_LINK $(BOOST)  $(CPPFLAGS) $(LFLAGS)
 
+docs:
+	doxygen Doxyfile
+
 boostlib:
 	rm -f /usr/lib/libboost*
 	rm -f /usr/local/lib/libboost*

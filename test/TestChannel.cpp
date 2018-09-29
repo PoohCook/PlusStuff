@@ -104,9 +104,9 @@ BOOST_AUTO_TEST_CASE( ChannelTest3 ){
     int client_id = 105366;
     ChannelClient<int,int> testClient(client_id, 1034);
 
-    BOOST_CHECK_EQUAL(  testChannel.attachedSessionIds().size(), 1ul );
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds().size(), 1ul );
 
-    BOOST_CHECK_EQUAL(  testChannel.attachedSessionIds()[0], client_id );
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds()[0], client_id );
 
     int retVal = testClient.send(41);
 
@@ -197,7 +197,7 @@ BOOST_AUTO_TEST_CASE( ChannelTest5 ){
 
     ChannelClient<int,int> testClient(client_id, 1034);
 
-    BOOST_CHECK_EQUAL(  testChannel.attachedSessionIds()[0], client_id );
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds()[0], client_id );
 
     int retVal = testClient.send(41);
 
