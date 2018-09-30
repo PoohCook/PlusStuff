@@ -14,3 +14,4 @@ server
 testRunner
 
 boostlib/*
+doc/*

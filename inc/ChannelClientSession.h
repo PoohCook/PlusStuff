@@ -62,7 +62,7 @@ private:
 
 public:
     /**
-     * Constructor for connecting to a ClientProvider instance at a specified address adn port number
+     * Constructor for connecting to a ClientProvider instance at a specified address and port number
      *
      * @param io_service reference to an instance of an asio io service object
      * @param client_id specifies the client_id to be used to identify this client when connecting
@@ -88,7 +88,7 @@ public:
 
         boost::asio::connect(ChannelSendProcessor<C,R,H>::socket_, endpoints);
         if( attach_socket(client_id) ){
-            ChannelSendProcessor<C,R,H>::startRecieving();
+            ChannelSendProcessor<C,R,H>::startReceiving();
         }
 
     }
@@ -106,7 +106,7 @@ private:
     bool attach_socket(int client_id){
          std::stringstream ss;
         boost::archive::text_oarchive oa(ss);
-        CommandHeader header(MESSAGE_TYPE_ATTACH, client_id);
+        ChannelMessageHeader header(MESSAGE_TYPE_ATTACH, client_id);
 
         oa << header ;
         ss << ";";

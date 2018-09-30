@@ -278,4 +278,9 @@ BOOST_AUTO_TEST_CASE( ChannelTest6 ){
 
 }
 
+// test that an unattached provider can be destroyed
+BOOST_AUTO_TEST_CASE( ChannelTest7 ){
 
+    ChannelProvider<int,int,Handler3> testChannel(1034);
+
+}

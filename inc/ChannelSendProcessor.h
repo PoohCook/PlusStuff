@@ -1,8 +1,22 @@
-/*
- * File:   ChannelSendProcessor.h
- * Author: Pooh
+/**
+ * @file ChannelSendProcessor.h
+ * @author  Pooh Cook
+ * @version 1.0
+ * @created September 27, 2018, 7:34 PM
  *
- * Created on September 27, 2018, 7:34 PM
+ * @section LICENSE
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of
+ * the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details at
+ * https://www.gnu.org/copyleft/gpl.html
+ *
  */
 
 #ifndef ChannelSendProcessor_H
@@ -15,57 +29,30 @@
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
+#include "ChannelMessageHeader.h"
 #include "Logger.h"
-
 
 using namespace std;
 using boost::asio::ip::tcp;
 
 #define DEFAULT_TCP_SESSION_BUFFER_SIZE  4096
 
-typedef enum{
-    MESSAGE_TYPE_WAITING = 0,
-    MESSAGE_TYPE_COMMAND,
-    MESSAGE_TYPE_RESPONSE,
-    MESSAGE_TYPE_ATTACH,
-    MESSAGE_TYPE_ATTACHED
-} MessageType;
 
-class CommandHeader{
-public:
-    MessageType type;
-    int id;
-
-    CommandHeader(){
-        type = MESSAGE_TYPE_WAITING;
-        id = 0;
-    }
-
-    CommandHeader( MessageType type, int id){
-        this->type = type;
-        this->id = id;
-    }
-
-    template<class Archive>
-    void serialize(Archive & ar, const unsigned int version)
-    {
-        ar & type;
-        ar & id;
-    }
-
-    string str(){
-        return to_string(id) + ":" + to_string(type);
-    }
-
-};
-
-
-
+/**
+ * @class ChannelSendProcessor
+ * @brief Processor template for R Send(C) implementation
+ *
+ * This class is not intended for direct client consumption. It is used by both the ChannelProviderSession and the
+ * ChannelClientSession objects to implement the templated handling methods for "Response Send (Command)".
+ * It performs the serialization and deserialization handling and also implements the Synchronous wait between
+ * Command and Response messages. It derives from H (handler) class to provide access to the assigned handler process methods.
+ *
+ */
 template< class C, class R, class H >
 class ChannelSendProcessor: H
 {
 protected:
-    tcp::socket socket_;
+    tcp::socket socket_;    ///  Boost asio socket for communication
 
 private:
     boost::asio::io_service& io_service;
@@ -79,20 +66,31 @@ private:
     bool write_in_progress_flag = false;
 
     int command_id_;
-    CommandHeader rcv_response_header_;
+    ChannelMessageHeader rcv_response_header_;
     R rcv_response_;
 
-    CommandHeader rcv_command_header_;
+    ChannelMessageHeader rcv_command_header_;
     C rcv_command_;
 
 
 public:
+    /**
+     * Synchronous send and receive method
+     *
+     * Command is serialized and sent to the ChannelProvider and then a Serialized response is awaited. Response is then
+     * deserialized and returned to the caller.
+     *
+     * @param command is a class of type C (command) as defined in the templated instance
+     *
+     * @return a class of type R (response) as defined by the templated instance
+     *
+     */
     R send( C command){
 
         try{
 
             int command_id = command_id_++;
-            CommandHeader header(MESSAGE_TYPE_COMMAND, command_id);
+            ChannelMessageHeader header(MESSAGE_TYPE_COMMAND, command_id);
 
             std::stringstream ss;
             boost::archive::text_oarchive oa(ss);
@@ -105,7 +103,7 @@ public:
 
             //  await response
             unique_lock<mutex> lock(response_mutex);
-            rcv_response_header_ = CommandHeader();
+            rcv_response_header_ = ChannelMessageHeader();
             response_available.wait(lock, [this]{return rcv_response_header_.type == MESSAGE_TYPE_RESPONSE;});
 
             if( command_id != rcv_response_header_.id){
@@ -124,6 +122,17 @@ public:
     }
 
 protected:
+    /**
+     * Constructor for creating a ChannelSendProcessor instance
+     *
+     * @param io_service reference to an instance of an asio io service object
+     * @param initial_command_id each channel message is given a sequentially increasing command id starting at this number
+     *          default is 1000
+     * @param buffer_size defines the size of the channel buffers for TCP messages.  This is the max serialization size
+     *          for the command or response object. The serialization size is determined by boost serialization libraries.
+     *          default is 4096 chars
+     *
+     */
     ChannelSendProcessor(boost::asio::io_service& io_service, int initial_command_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
         : socket_(io_service), io_service(io_service), buffer_size_(buffer_size), read_buffer_(buffer_size),
         command_id_(initial_command_id) {
@@ -132,7 +141,11 @@ protected:
     virtual ~ChannelSendProcessor(){
     }
 
-    void startRecieving(){
+    /**
+     * @brief begin receiving messages from the socket
+     *
+     */
+    void startReceiving(){
         lock_guard<mutex> lock(write_mutex);
 
         socket_.async_receive( boost::asio::buffer(read_buffer_, read_buffer_.size()),
@@ -143,6 +156,10 @@ protected:
 
     }
 
+    /**
+     * virtual method to allow derived classes access to comm errors that occur
+     *
+     */
     virtual void handle_comm_error( const boost::system::error_code& error ){
 
     }
@@ -151,9 +168,9 @@ protected:
 
 private:
 
-    void write_data (string send_data, CommandHeader header ){
+    void write_data (string send_data, ChannelMessageHeader header ){
 
-        lock_guard<mutex> lock(write_mutex);
+         lock_guard<mutex> lock(write_mutex);
          LogMessage(string("write start: ") + header.str() );
 
 //        unique_lock<mutex> lock(write_mutex);
@@ -202,17 +219,17 @@ private:
             read_buffer_[bytes_transferred] = '\0';
 
             //  this needs some splaining... for reasons that that seemingly can't be locked away,
-            //  the results of a boost asio async read can often have multiple read messsages concatinated
+            //  the results of a boost asio async read can often have multiple read messages concatenated
             //  together into one...  This only occurs when multiple threads are involved calling from
-            //  client and provider. This stops the down stream problem by parsing themback out based upon
-            //  a semicolon added at serilization time...
+            //  client and provider. This stops the down stream problem by parsing them back out based upon
+            //  a semicolon added at serialization time...
             std::stringstream ss(read_buffer_.data());
             std::string message;
             while (std::getline(ss, message, ';')) {
                 handle_archive_message(message);
             }
 
-            startRecieving();
+            startReceiving();
 
         }
         else{
@@ -223,7 +240,7 @@ private:
 
     void handle_archive_message(string message){
         try{
-            CommandHeader header;
+            ChannelMessageHeader header;
             {
                 lock_guard<mutex> lock(response_mutex);
 
