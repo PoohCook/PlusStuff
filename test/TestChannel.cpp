@@ -186,14 +186,11 @@ BOOST_AUTO_TEST_CASE( ChannelTest5 ){
 
     ChannelProvider<int,int,Handler3> testChannel(1034);
 
-    //  white list the wrong client_id.  This invokes white listing
-    testChannel.whitelist( 150);
+    int client_id = testChannel.generateWhitelistId();
 
-    int client_id = 105366;
+    int wrong_id = client_id + 1;
 
-    BOOST_CHECK_THROW (create_test_channel(client_id, 1034), boost::system::system_error);
-
-    testChannel.whitelist(client_id);
+    BOOST_CHECK_THROW (create_test_channel(wrong_id, 1034), boost::system::system_error);
 
     ChannelClient<int,int> testClient(client_id, 1034);
 
@@ -226,8 +223,7 @@ BOOST_AUTO_TEST_CASE( ChannelTest6 ){
 
     ChannelProvider<Command,Command,Handler4> testChannel(1044);
 
-    int client_id = 100699;
-    testChannel.whitelist(client_id);
+    int client_id = testChannel.generateWhitelistId();
 
     ChannelClient<Command,Command, Handler5> testClient(client_id, 1044);
 

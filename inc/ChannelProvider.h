@@ -27,6 +27,8 @@
 #include <thread>
 #include <sstream>
 #include <exception>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/bind.hpp>
@@ -62,6 +64,7 @@ private:
 
     std::thread worker_thread;
 
+    boost::random::mt19937 gen_;
 
 public:
     /**
@@ -77,7 +80,7 @@ public:
         : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)),
         buffer_size_(buffer_size) {
 
-         spawn_new_session();
+        spawn_new_session();
 
         worker_thread = std::thread(&ChannelProvider<C,R,H>::run_io, this);
 
@@ -109,17 +112,26 @@ public:
     }
 
     /**
-     * Add a client id to the current whitelist
+     * Generates a random client id and adds it to the current whitelist
      *
-     * Note: if the whitelist is empty, then all clients will be allowed ot connect. If any client_ids are added to the
-     * whitelist, then only those client_ids will be allowed to connect.
+     * Note: if the whitelist is empty, then all clients will be allowed ot connect. If any client_ids are generated for
+     * the whitelist, then only those client_ids will be allowed to connect.
      *
      * @param client_id  the id of the client to be whitelisted
      *
      */
-    void whitelist(int client_id){
-        whitelist_.push_back(client_id);
+    int generateWhitelistId(){
+        boost::random::uniform_int_distribution<int> dist;
+        int newWhiteId = 0;
 
+        while ( newWhiteId <= 0 ||
+                find ( whitelist_.begin(), whitelist_.end(), newWhiteId) != whitelist_.end() ){
+
+            newWhiteId = dist(gen_);
+        }
+
+        whitelist_.push_back(newWhiteId);
+        return newWhiteId;
     }
 
     /**
