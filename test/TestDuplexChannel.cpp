@@ -107,10 +107,10 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest2 ){
 
     cout << "long run\n";
 
-    ChannelProvider<int,bool,PrimesHandler> testChannel(1036);
+    ChannelProvider<int,bool,PrimesHandler> testChannel(1036, 5);
 
     int client_id = 105289;
-    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1036);
+    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1036, "127.0.0.1", 5);
 
 
     Worker<PrimeChannelProcessor> myWorker;
@@ -149,10 +149,10 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
     PrimeChannelProcessor::primes.clear();
     cout << "duplexing\n";
 
-    ChannelProvider<int,bool,PrimesHandler> testChannel(1077);
+    ChannelProvider<int,bool,PrimesHandler> testChannel(1077, 5);
 
     int client_id = 105289;
-    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1077);
+    ChannelClient<int,bool,PrimesHandler> testClient(client_id, 1077, "127.0.0.1", 5);
 
 
     Worker<PrimeChannelProcessor> myWorker;

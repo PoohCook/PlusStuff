@@ -25,6 +25,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <chrono>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/bind.hpp>
@@ -71,6 +72,8 @@ private:
     C rcv_command_;
 
     int attached_client_id_ = 0;
+    int process_timeout_seconds_;
+
     tcp::socket socket_;    ///  Boost asio socket for communication
 
 public:
@@ -87,35 +90,34 @@ public:
      */
     R send( C command){
 
-        try{
+        int command_id = command_id_++;
+        ChannelMessageHeader header(MESSAGE_TYPE_COMMAND, command_id);
 
-            int command_id = command_id_++;
-            ChannelMessageHeader header(MESSAGE_TYPE_COMMAND, command_id);
+        std::stringstream ss;
+        boost::archive::text_oarchive oa(ss);
 
-            std::stringstream ss;
-            boost::archive::text_oarchive oa(ss);
+        oa << header;
+        oa << command ;
+        ss << ";";
 
-            oa << header;
-            oa << command ;
-            ss << ";";
+        write_data(ss.str(), header);
 
-            write_data(ss.str(), header);
+        //  await response
+        unique_lock<mutex> lock(response_mutex);
+        rcv_response_header_ = ChannelMessageHeader();
+        if( !response_available.wait_for(lock,
+                                    std::chrono::seconds(process_timeout_seconds_),
+                                    [this]{return rcv_response_header_.type == MESSAGE_TYPE_RESPONSE;})){
 
-            //  await response
-            unique_lock<mutex> lock(response_mutex);
-            rcv_response_header_ = ChannelMessageHeader();
-            response_available.wait(lock, [this]{return rcv_response_header_.type == MESSAGE_TYPE_RESPONSE;});
+            throw std::runtime_error("timeout awaiting reply to frame(" + to_string(command_id) + ")");
 
-            if( command_id != rcv_response_header_.id){
-                throw std::runtime_error("wrong command id in channel provider; expected(" + to_string(command_id) + ")  returned(" + to_string(rcv_response_header_.id) + ") ");
-            }
-
-        }catch(boost::archive::archive_exception err ){
-            cout << "caught: " << err.what() << std::endl;
         }
 
+        if( command_id != rcv_response_header_.id){
+            throw std::runtime_error("wrong command id in channel provider; expected(" + to_string(command_id) + ")  returned(" + to_string(rcv_response_header_.id) + ") ");
+        }
 
-        return rcv_response_;
+         return rcv_response_;
 
 
 
@@ -131,6 +133,7 @@ public:
 
 
     virtual ~ChannelSendProcessor(){
+
     }
 
     /**
@@ -159,6 +162,7 @@ protected:
      * Constructor for creating a ChannelSendProcessor instance
      *
      * @param io_service reference to an instance of an asio io service object
+     * @param process_timeout_seconds number of seconds to wait before timing out a process attempt. Default is 10
      * @param initial_command_id each channel message is given a sequentially increasing command id starting at this number
      *          default is 1000
      * @param buffer_size defines the size of the channel buffers for TCP messages.  This is the max serialization size
@@ -166,9 +170,10 @@ protected:
      *          default is 4096 chars
      *
      */
-    ChannelSendProcessor(boost::asio::io_service& io_service, int initial_command_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
+    ChannelSendProcessor(boost::asio::io_service& io_service, int process_timeout_seconds = 10,
+                          int initial_command_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
         : io_service(io_service), buffer_size_(buffer_size), read_buffer_(buffer_size),
-        command_id_(initial_command_id), socket_(io_service) {
+        command_id_(initial_command_id), process_timeout_seconds_(process_timeout_seconds), socket_(io_service) {
     }
 
     /**
@@ -221,6 +226,7 @@ private:
 //            boost::bind(&ChannelSendProcessor<C,R,H>::handle_write, this,
 //                boost::asio::placeholders::error));
 
+
         boost::system::error_code error;
         socket_.write_some(boost::asio::buffer(send_data), error);
         if (error){
@@ -228,6 +234,8 @@ private:
         }
 
         LogMessage(string("write end: ") + header.str() );
+
+
 
     }
 
@@ -277,50 +285,43 @@ private:
 
 
     void handle_archive_message(string message){
-        try{
-            ChannelMessageHeader header;
-            {
+
+         ChannelMessageHeader header;
+        {
                 lock_guard<mutex> lock(response_mutex);
 
 
-                LogMessage(  string(message)  );
+            LogMessage(  string(message)  );
 
-                std::stringstream sr;
-                sr << message;
-                boost::archive::text_iarchive ia(sr);
+            std::stringstream sr;
+            sr << message;
+            boost::archive::text_iarchive ia(sr);
 
-                ia >> header;
-                if( header.type == MESSAGE_TYPE_RESPONSE){
-                    rcv_response_header_ = header;
-                    ia >> rcv_response_;
-                }
-                else if( header.type == MESSAGE_TYPE_COMMAND){
-                    rcv_command_header_ = header;
-                    ia >> rcv_command_;
-                }
-
-            }
-
+            ia >> header;
             if( header.type == MESSAGE_TYPE_RESPONSE){
-                response_available.notify_all();
+                rcv_response_header_ = header;
+                ia >> rcv_response_;
             }
-
             else if( header.type == MESSAGE_TYPE_COMMAND){
-                handle_command( header );
+                rcv_command_header_ = header;
+                ia >> rcv_command_;
             }
+          }
 
-
-       }catch(boost::archive::archive_exception err ){
-            cout << "caught2: " << err.what() << std::endl;
+        if( header.type == MESSAGE_TYPE_RESPONSE){
+            response_available.notify_all();
         }
 
+        else if( header.type == MESSAGE_TYPE_COMMAND){
+            handle_command( header );
+        }
 
 
     }
 
     void handle_command(ChannelMessageHeader header ){
 
-        ///  handler class must possess this function
+         ///  handler class must possess this function
         R response = H::process( attached_client_id_, rcv_command_);
 
         std::stringstream ss;

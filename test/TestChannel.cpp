@@ -342,5 +342,40 @@ BOOST_AUTO_TEST_CASE( ChannelTest9 ){
 }
 
 
+class Handler7{
+
+public:
+    static mutex stopper;
+
+    int process(int client_id, int command ){
+       lock_guard<mutex> lock(stopper);
+
+       sleep( 5);
+       return client_id + command ;
+    }
+};
+
+mutex Handler7::stopper;
+
+static void send_test_channel( ChannelClient<int,int, Handler7>& testClient ) {
+    testClient.send(2);
+}
+
+
+BOOST_AUTO_TEST_CASE( ChannelTest10 ){
+
+    ChannelProvider<int,int,Handler7> testChannel(1034);
+
+    int client_id = 8;
+    ChannelClient<int,int, Handler7> testClient(client_id, 1034, "127.0.0.1", 3);
+
+    cout << "long processing simulation\n";
+
+    BOOST_CHECK_THROW (send_test_channel(testClient), std::runtime_error);
+
+    lock_guard<mutex> lock(Handler7::stopper);
+
+}
+
 
 

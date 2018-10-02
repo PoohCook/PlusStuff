@@ -62,6 +62,7 @@ public:
      * Constructor for creating a ClientProviderSession instance 
      *
      * @param io_service reference to an instance of an asio io service object
+     * @param process_timeout_seconds number of seconds to wait before timing out a process attempt. Default is 10
      * @param initial_command_id each channel message is given a sequentially increasing command id starting at this number
      *          default is 1000
      * @param buffer_size defines the size of the channel buffers for TCP messages.  This is the max serialization size
@@ -70,9 +71,9 @@ public:
      * @param parent pointer to parent ChannelProvider. This is used to perform authorization upon client connection
      *
      */
-    ChannelProviderSession(boost::asio::io_service& io_service, int initial_command_id = 1000,
+    ChannelProviderSession(boost::asio::io_service& io_service, int process_timeout_seconds = 10, int initial_command_id = 1000,
         int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE, ChannelProvider<C,R,H>* parent =  NULL)
-        : ChannelSendProcessor<C,R,H>(io_service, initial_command_id, buffer_size ),
+        : ChannelSendProcessor<C,R,H>(io_service, process_timeout_seconds, initial_command_id, buffer_size ),
           read_buffer_(buffer_size), parent_server(parent){
     }
 

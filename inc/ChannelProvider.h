@@ -60,7 +60,10 @@ class ChannelProvider
 private:
     boost::asio::io_service io_service;
     tcp::acceptor acceptor_;
+    int process_timeout_seconds_;
+    int initial_command_id_;
     int buffer_size_;
+
     vector<ChannelProviderSession<C,R,H>*> attached_sessions;
     vector<int>whitelist_ ;
 
@@ -73,14 +76,17 @@ public:
      * Constructor for creating a ClientProvider instance connected to a port number
      *
      * @param port specifies the port number of the channel
+     * @param process_timeout_seconds number of seconds to wait before timing out a process attempt. Default is 10
+     * @param initial_command_id each channel message is given a sequentially increasing command id starting at this number
+     *          default is 4000
      * @param buffer_size defines the size of the channel buffers for TCP messages.  This is the max serialization size
      *          for the command or response object. The serialization size is determined by boost serialization libraries.
      *          default is 4096 chars
      *
      */
-    ChannelProvider(short port, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
+    ChannelProvider(short port, int process_timeout_seconds = 10, int initial_command_id = 4000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
         : acceptor_(io_service, tcp::endpoint(tcp::v4(), port)),
-        buffer_size_(buffer_size) {
+        process_timeout_seconds_(process_timeout_seconds), initial_command_id_(initial_command_id), buffer_size_(buffer_size) {
 
         spawn_new_session();
 
@@ -175,7 +181,8 @@ private:
     }
 
     void spawn_new_session(){
-        ChannelProviderSession<C,R,H>* new_session = new ChannelProviderSession<C,R,H>(io_service, 4000, buffer_size_, this);
+        ChannelProviderSession<C,R,H>* new_session =
+            new ChannelProviderSession<C,R,H>(io_service, process_timeout_seconds_, initial_command_id_, buffer_size_, this);
         acceptor_.async_accept(new_session->socket(),
             boost::bind(&ChannelProvider::handle_accept, this, new_session,
                 boost::asio::placeholders::error));
