@@ -55,9 +55,6 @@ class ChannelClientSession : public ChannelSendProcessor<C,R,H>
 private:
 
     int buffer_size_;
-    std::vector<char> read_buffer_;
-
-
 
 
 public:
@@ -78,28 +75,20 @@ public:
     ChannelClientSession(boost::asio::io_service& io_service, int client_id, short port, string address = "127.0.0.1",
         int initial_command_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
             : ChannelSendProcessor<C,R,H>(io_service, initial_command_id, buffer_size),
-          buffer_size_(buffer_size),
-          read_buffer_(buffer_size)  {
+          buffer_size_(buffer_size) {
+
+        ChannelSendProcessor<C,R,H>::set_attached_client_id(client_id);
 
         tcp::resolver resolver(io_service);
         tcp::resolver::results_type endpoints =
           resolver.resolve(address, to_string(port));
 
 
-        boost::asio::connect(ChannelSendProcessor<C,R,H>::socket_, endpoints);
+        boost::asio::connect(ChannelSendProcessor<C,R,H>::socket(), endpoints);
         if( attach_socket(client_id) ){
             ChannelSendProcessor<C,R,H>::startReceiving();
         }
 
-    }
-
-    /**
-     * Closes the session so the io_service can be shutdown during destruction of the consumer class
-     *
-     */
-    void close(){
-        ChannelSendProcessor<C,R,H>::socket_.cancel();
-        ChannelSendProcessor<C,R,H>::socket_.close();
     }
 
 private:
@@ -112,13 +101,13 @@ private:
         ss << ";";
 
         boost::system::error_code error;
-        ChannelSendProcessor<C,R,H>::socket_.write_some(boost::asio::buffer(ss.str()), error);
+        ChannelSendProcessor<C,R,H>::socket().write_some(boost::asio::buffer(ss.str()), error);
         if (error){
             throw boost::system::system_error(error);
         }
 
         std::vector<char> buf(buffer_size_);
-        size_t rlen = ChannelSendProcessor<C,R,H>::socket_.read_some(boost::asio::buffer(buf), error);
+        size_t rlen = ChannelSendProcessor<C,R,H>::socket().read_some(boost::asio::buffer(buf), error);
         if (error){
             throw boost::system::system_error(error);
         }

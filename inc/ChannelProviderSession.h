@@ -55,7 +55,6 @@ class ChannelProviderSession: public ChannelSendProcessor<C,R,H>
 private:
 
     std::vector<char> read_buffer_;
-    int attached_client_id_ = 0;
     ChannelProvider<C,R,H>* parent_server;
 
 public:
@@ -77,10 +76,6 @@ public:
           read_buffer_(buffer_size), parent_server(parent){
     }
 
-    tcp::socket& socket(){
-        return ChannelSendProcessor<C,R,H>::socket_;
-    }
-
     /**
      * @brief Initiate session processing
      *
@@ -94,7 +89,7 @@ public:
     bool startSession(){
 
         boost::system::error_code error;
-        size_t read_length = ChannelSendProcessor<C,R,H>::socket_.read_some(boost::asio::buffer(read_buffer_), error);
+        size_t read_length = ChannelSendProcessor<C,R,H>::socket().read_some(boost::asio::buffer(read_buffer_), error);
         if (error){
             return false;
         }
@@ -115,7 +110,7 @@ public:
             return false;
         }
 
-        attached_client_id_ = header.id;
+        ChannelSendProcessor<C,R,H>::set_attached_client_id(header.id);
 
         std::stringstream ss;
         boost::archive::text_oarchive oa(ss);
@@ -124,7 +119,7 @@ public:
         oa << header ;
         ss << ";";
 
-        ChannelSendProcessor<C,R,H>::socket_.write_some(boost::asio::buffer(ss.str()), error);
+        ChannelSendProcessor<C,R,H>::socket().write_some(boost::asio::buffer(ss.str()), error);
         if (error){
             return false;
         }
@@ -134,16 +129,6 @@ public:
         return true;
     }
 
-    /**
-     * @brief get attached client id
-     *
-     *
-     * @return client id of the attached client if a client has successfully connected or 0 if not client is connected
-     *
-     */
-    int attachedClientId(){
-        return attached_client_id_;
-    }
 
 protected:
     // override of virtual base class method to handle comm errors.  An error in the base class class

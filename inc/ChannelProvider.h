@@ -48,6 +48,8 @@ using namespace std;
  * An integer client_id is expected from clients as they connect. A whitelist can be setup on the ChannelProvider to
  * exclude un registered clients or accept any client if not setup.
  *
+ * The handler class must possess a method of the signature: R process ( client_id, C command);
+
  */
 template< class C, class R, class H >
 class ChannelProvider
@@ -87,13 +89,24 @@ public:
     }
 
     ~ChannelProvider(){
-        acceptor_.cancel();
+        close();
+    }
+
+    /**
+     * Closes the close the provider and shutdown the io_service
+     *
+     */
+    void close () {
         acceptor_.close();
         for( auto it = attached_sessions.begin() ; it != attached_sessions.end() ; it++ ){
             delete *it;
         }
-        worker_thread.join();
+        attached_sessions.clear();
+
+        if( worker_thread.joinable() ) worker_thread.join();
+
     }
+
 
     /**
      * returns a list currently attached client ids

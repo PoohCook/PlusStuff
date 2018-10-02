@@ -45,7 +45,7 @@ using namespace std;
 template< class C, class R >
 class NullHandler{
 public:
-    R process(C command ){
+    R process(int client_id, C command ){
        return R();
     }
 };
@@ -60,14 +60,16 @@ public:
  * An integer client_id is required when constructing this class to identify the particular client connection to
  * the ClientProvider
  *
+ * The handler class must possess a method of the signature: R process ( client_id, C command);
+ *
  */
 template< class C, class R, class H = NullHandler<C,R> >
 class ChannelClient
 {
 private:
     boost::asio::io_service io_service;
-    boost::asio::io_service::work* working_ = NULL;
     std::thread worker_thread;
+    boost::asio::io_service::work* working_ = NULL;
     ChannelClientSession<C,R,H> session_;
 
 public:
@@ -92,13 +94,23 @@ public:
     }
 
     ~ChannelClient(){
+        close();
+    }
+
+    /**
+     * Closes the close the client and shutdown the io_service
+     *
+     */
+    void close () {
         session_.close();
         if( working_ != NULL ){
             delete working_;
-            worker_thread.join();
-
+            working_ = NULL;
+            if( worker_thread.joinable() )worker_thread.join();
         }
     }
+
+
 
     /**
      * Synchronous send and receive method

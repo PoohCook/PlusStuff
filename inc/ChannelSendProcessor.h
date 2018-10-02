@@ -51,8 +51,6 @@ using boost::asio::ip::tcp;
 template< class C, class R, class H >
 class ChannelSendProcessor: H
 {
-protected:
-    tcp::socket socket_;    ///  Boost asio socket for communication
 
 private:
     boost::asio::io_service& io_service;
@@ -72,6 +70,8 @@ private:
     ChannelMessageHeader rcv_command_header_;
     C rcv_command_;
 
+    int attached_client_id_ = 0;
+    tcp::socket socket_;    ///  Boost asio socket for communication
 
 public:
     /**
@@ -121,6 +121,39 @@ public:
 
     }
 
+    /**
+     * Closes the socket so the io_service can be shutdown during destruction of the consumer class
+     *
+     */
+    void close(){
+        socket_.close();
+    }
+
+
+    virtual ~ChannelSendProcessor(){
+    }
+
+    /**
+     * @brief get attached client id
+     *
+     *
+     * @return client id of the attached client if a client has successfully connected or 0 if not client is connected
+     *
+     */
+    int attachedClientId(){
+        return attached_client_id_;
+    }
+
+    /**
+     * @brief access method to get the socket for the session
+     *
+     */
+    tcp::socket& socket(){
+        return socket_;
+    }
+
+
+
 protected:
     /**
      * Constructor for creating a ChannelSendProcessor instance
@@ -134,11 +167,16 @@ protected:
      *
      */
     ChannelSendProcessor(boost::asio::io_service& io_service, int initial_command_id = 1000, int buffer_size = DEFAULT_TCP_SESSION_BUFFER_SIZE)
-        : socket_(io_service), io_service(io_service), buffer_size_(buffer_size), read_buffer_(buffer_size),
-        command_id_(initial_command_id) {
+        : io_service(io_service), buffer_size_(buffer_size), read_buffer_(buffer_size),
+        command_id_(initial_command_id), socket_(io_service) {
     }
 
-    virtual ~ChannelSendProcessor(){
+    /**
+     *  @brief set the attached client id
+     *
+     */
+    void set_attached_client_id(int client_id){
+        attached_client_id_ = client_id;
     }
 
     /**
@@ -184,7 +222,7 @@ private:
 //                boost::asio::placeholders::error));
 
         boost::system::error_code error;
-        ChannelSendProcessor<C,R,H>::socket_.write_some(boost::asio::buffer(send_data), error);
+        socket_.write_some(boost::asio::buffer(send_data), error);
         if (error){
             handle_comm_error(error);
         }
@@ -268,7 +306,7 @@ private:
             }
 
             else if( header.type == MESSAGE_TYPE_COMMAND){
-                handle_command();
+                handle_command( header );
             }
 
 
@@ -280,19 +318,19 @@ private:
 
     }
 
-    void handle_command( ){
+    void handle_command(ChannelMessageHeader header ){
 
-        ///  handler class must pocess this function
-        R response = H::process( rcv_command_);
+        ///  handler class must possess this function
+        R response = H::process( attached_client_id_, rcv_command_);
 
         std::stringstream ss;
         boost::archive::text_oarchive oa(ss);
-        rcv_command_header_.type = MESSAGE_TYPE_RESPONSE;
-        oa << rcv_command_header_;
+        header.type = MESSAGE_TYPE_RESPONSE;
+        oa << header;
         oa << response;
         ss << ";";
 
-        write_data(ss.str(), rcv_command_header_);
+        write_data(ss.str(), header);
 
     }
 

@@ -15,7 +15,7 @@ using namespace std;
 
 class PrimesHandler{
 public:
-    bool process( int candidate ){
+    bool process( int client_id, int candidate ){
 
     LogMessage( "is handling: " + to_string(candidate) );
        return IsPrime( candidate );

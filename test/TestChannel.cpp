@@ -20,7 +20,7 @@ using namespace std;
 
 class Handler{
 public:
-    int process( map<string,string> command ){
+    int process( int client_id, map<string,string> command ){
        if (command["bunny"] == "white") return 66;
        return 99;
     }
@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE( ChannelTest1 ){
 
 class Handler2{
 public:
-    string process(map<string,string> arg ){
+    string process(int client_id, map<string,string> arg ){
         stringstream ssRet;
         ssRet << arg["pooh"] << ":" << arg["bunny"] << ":" << arg["kuma"];
 
@@ -90,14 +90,12 @@ BOOST_AUTO_TEST_CASE( ChannelTest2 ){
 
 class Handler3{
 public:
-    int process(int command ){
+    int process(int client_id, int command ){
        return command + 1;
     }
 };
 
 BOOST_AUTO_TEST_CASE( ChannelTest3 ){
-
-    cout << "begin here\n";
 
     ChannelProvider<int,int,Handler3> testChannel(1034);
 
@@ -142,7 +140,7 @@ public:
 
 class Handler4{
 public:
-    Command process(Command command ){
+    Command process(int client_id, Command command ){
 
         Command response;
         response.command = command.command + "_response";
@@ -205,7 +203,7 @@ BOOST_AUTO_TEST_CASE( ChannelTest5 ){
 
 class Handler5{
 public:
-    Command process(Command command ){
+    Command process(int client_id, Command command ){
 
         Command response;
         response.command = command.command + "_reply";
@@ -280,3 +278,69 @@ BOOST_AUTO_TEST_CASE( ChannelTest7 ){
     ChannelProvider<int,int,Handler3> testChannel(1034);
 
 }
+
+// test if close and destructor can both be called on the client and provider
+BOOST_AUTO_TEST_CASE( ChannelTest8 ){
+
+    ChannelProvider<int,int,Handler3> testChannel(1034);
+
+    int client_id = 105366;
+    ChannelClient<int,int, Handler3> testClient(client_id, 1034);
+
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds().size(), 1ul );
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds()[0], client_id );
+
+    int retVal = testClient.send(41);
+
+    BOOST_CHECK_EQUAL(  retVal, 42 );
+
+
+    retVal = testChannel.send(client_id, 68);
+
+    BOOST_CHECK_EQUAL(  retVal, 69 );
+
+    testClient.close();
+    testChannel.close();
+
+
+}
+
+
+class Handler6{
+public:
+    int process(int client_id, int command ){
+       return client_id + command ;
+    }
+};
+
+BOOST_AUTO_TEST_CASE( ChannelTest9 ){
+
+    ChannelProvider<int,int,Handler6> testChannel(1034);
+
+    int client_id = 8;
+    ChannelClient<int,int, Handler6> testClient(client_id, 1034);
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds().size(), 1ul );
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds()[0], client_id );
+
+    int retVal = testClient.send(2);
+
+    BOOST_CHECK_EQUAL(  retVal, 10 );
+
+
+    retVal = testChannel.send(client_id, 4);
+
+    BOOST_CHECK_EQUAL(  retVal, 12 );
+
+    testClient.close();
+    testChannel.close();
+
+
+}
+
+
+
+
