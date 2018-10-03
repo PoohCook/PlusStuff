@@ -100,11 +100,14 @@ public:
         oa << command ;
         ss << ";";
 
+        // setup response wait lock.
+        // This needs to happen here because, response can be received prior to completion of write
+        unique_lock<mutex> lock(response_mutex);
+        rcv_response_header_ = ChannelMessageHeader();
+
         write_data(ss.str(), header);
 
         //  await response
-        unique_lock<mutex> lock(response_mutex);
-        rcv_response_header_ = ChannelMessageHeader();
         if( !response_available.wait_for(lock,
                                     std::chrono::seconds(process_timeout_seconds_),
                                     [this]{return rcv_response_header_.type == MESSAGE_TYPE_RESPONSE;})){
