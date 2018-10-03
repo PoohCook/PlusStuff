@@ -191,4 +191,66 @@ BOOST_AUTO_TEST_CASE( DuplexChannelTest3 ){
 }
 
 
+BOOST_AUTO_TEST_CASE( DuplexChannelTest4 ){
+
+    PrimeChannelProcessor::primes.clear();
+    cout << "duplexing multiple channels\n";
+
+    ChannelProvider<int,bool,PrimesHandler> testChannel(1078, 5);
+
+    int client1_id = 105289;
+    ChannelClient<int,bool,PrimesHandler> testClient1(client1_id, 1078, "127.0.0.1", 5);
+
+    int client2_id = 106397;
+    ChannelClient<int,bool,PrimesHandler> testClient2(client2_id, 1078, "127.0.0.1", 5);
+
+
+    Worker<PrimeChannelProcessor> myWorker;
+    Worker<PrimeChannelProcessor> myWorker2;
+    Worker<PrimeChannelProcessor> myWorker3;
+    Worker<PrimeChannelProcessor> myWorker4;
+
+    for ( int indx = 1 ; indx < 2000 ; indx++ ){
+        myWorker.push(PrimeChannelProcessor(indx, &testChannel, NULL, client1_id));
+    }
+
+    for ( int indx = 2000 ; indx < 4000 ; indx++ ){
+        myWorker2.push(PrimeChannelProcessor(indx, &testChannel, NULL, client2_id));
+    }
+
+    for ( int indx = 4000 ; indx < 6500 ; indx++ ){
+        myWorker3.push(PrimeChannelProcessor(indx, NULL, &testClient1, 0));
+    }
+
+    for ( int indx = 6500 ; indx < 10000 ; indx++ ){
+        myWorker4.push(PrimeChannelProcessor(indx, NULL, &testClient2, 0));
+    }
+
+
+    //cout << "shutting down\n";
+    myWorker.shutdown(true);
+    myWorker2.shutdown(true);
+    myWorker3.shutdown(true);
+    myWorker4.shutdown(true);
+
+
+    sort( PrimeChannelProcessor::primes.begin(), PrimeChannelProcessor::primes.end() );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes.size(), 1230ul );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[0], 1 );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[2], 3 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[3], 5 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[4], 7 );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[23], 83 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[24], 89 );
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[25], 97 );
+
+    BOOST_CHECK_EQUAL(  PrimeChannelProcessor::primes[1229], 9973 );
+
+
+}
+
 

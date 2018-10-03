@@ -8,6 +8,7 @@
 
 #include <string>
 #include <iostream>
+#include <memory>
 #include <boost/test/unit_test.hpp>
 #include <boost/asio.hpp>
 #include <boost/serialization/map.hpp>
@@ -378,4 +379,41 @@ BOOST_AUTO_TEST_CASE( ChannelTest10 ){
 }
 
 
+BOOST_AUTO_TEST_CASE( ChannelTest11 ){
+
+    ChannelProvider<int,int,Handler6> testChannel(1034);
+
+    int client1_id = 8;
+    int client2_id = 18;
+    std::vector<std::unique_ptr<ChannelClient<int,int, Handler6>>> clients;
+    clients.push_back(std::unique_ptr<ChannelClient<int,int, Handler6>>(new ChannelClient<int,int, Handler6>(client1_id, 1034)));
+    clients.push_back(std::unique_ptr<ChannelClient<int,int, Handler6>>(new ChannelClient<int,int, Handler6>(client2_id, 1034)));
+
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds().size(), 2ul );
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds()[0], client1_id );
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds()[1], client2_id );
+
+    int retVal = clients[0]->send(2);
+
+    BOOST_CHECK_EQUAL(  retVal, 10 );
+
+    retVal = testChannel.send(client1_id, 4);
+
+    BOOST_CHECK_EQUAL(  retVal, 12 );
+
+    retVal = clients[1]->send(2);
+
+    BOOST_CHECK_EQUAL(  retVal, 20 );
+
+    retVal = testChannel.send(client2_id, 4);
+
+    BOOST_CHECK_EQUAL(  retVal, 22 );
+
+
+
+
+
+}
 
