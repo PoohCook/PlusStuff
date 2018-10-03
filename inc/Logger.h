@@ -10,7 +10,7 @@
 
 #ifdef DIAG_MESSAGES
 
-#define LogMessage(msg) (cout << string(msg) << "\n")
+#define LogMessage(msg) (cout << string(string(msg) + "\n"))
 
 #else
 

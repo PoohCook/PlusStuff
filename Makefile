@@ -1,5 +1,5 @@
 CC = g++
-CPPFLAGS = -g -Wall -std=c++11 -pthread -iquote inc -I boostlib/inc
+CPPFLAGS = -g -Wall -std=c++11 -pthread -iquote inc -I boostlib/inc -DDIAG_MESSAGES
 LFLAGS = -Wall -DBOOST_ALL_NO_LIB -DBOOST_ALL_DYN_LINK -DBOOST_LOG_DYN_LINK
 BOOST = -Lboostlib/lib -lboost_unit_test_framework -lboost_system -lboost_serialization -lboost_wserialization -Wl,-rpath,'boostlib/lib'
 
@@ -7,7 +7,7 @@ DEPS = inc/Worker.h inc/ChannelProvider.h inc/ChannelClient.h inc/ChannelClientS
        inc/ChannelSendProcessor.h inc/IsPrime.h inc/Logger.h inc/ChannelMessageHeader.h
 OBJ = obj/IsPrime.o
 TEST = obj/TestWorker.o obj/TestChannel.o obj/TestDuplexChannel.o
-MUTED = -DDIAG_MESSAGES
+MUTED =
 
 obj/%.o: src/%.cpp $(DEPS)
 	mkdir -p obj
