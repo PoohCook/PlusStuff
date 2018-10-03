@@ -38,19 +38,6 @@
 using namespace std;
 
 /**
- * @class NullHandler
- * @brief Empty handler class for instances when H (handler class is not provided for ChannelClient
- *
- */
-template< class C, class R >
-class NullHandler{
-public:
-    R process(int client_id, C command ){
-       return R();
-    }
-};
-
-/**
  * @class ChannelClient
  * @brief Connect to a Channel as a client
  *

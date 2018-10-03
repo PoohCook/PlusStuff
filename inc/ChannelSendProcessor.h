@@ -38,6 +38,19 @@ using boost::asio::ip::tcp;
 
 #define DEFAULT_TCP_SESSION_BUFFER_SIZE  4096
 
+/**
+ * @class NullHandler
+ * @brief Empty handler class for instances when H (handler) class is not provided for ChannelClient or ChannelProvider
+ *
+ */
+template< class C, class R >
+class NullHandler{
+public:
+    R process(int client_id, C command ){
+       return R();
+    }
+};
+
 
 /**
  * @class ChannelSendProcessor

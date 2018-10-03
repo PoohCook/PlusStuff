@@ -51,7 +51,7 @@ using namespace std;
  * The handler class must possess a method of the signature: R process ( client_id, C command);
 
  */
-template< class C, class R, class H >
+template< class C, class R, class H = NullHandler<C,R>>
 class ChannelProvider
 {
     // the provider session uses a private method to call back to the provider to do authorization and registration

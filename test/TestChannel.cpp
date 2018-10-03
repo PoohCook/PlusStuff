@@ -417,3 +417,25 @@ BOOST_AUTO_TEST_CASE( ChannelTest11 ){
 
 }
 
+
+
+BOOST_AUTO_TEST_CASE( ChannelTest12 ){
+
+    ChannelProvider<int,int> testChannel(1034);
+
+    int client_id = 8;
+    ChannelClient<int,int, Handler6> testClient(client_id, 1034);
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds().size(), 1ul );
+
+    BOOST_CHECK_EQUAL(  testChannel.attachedClientIds()[0], client_id );
+
+
+    int retVal = testChannel.send(client_id, 4);
+
+    BOOST_CHECK_EQUAL(  retVal, 12 );
+
+
+
+}
+
