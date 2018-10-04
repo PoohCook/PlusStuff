@@ -24,13 +24,15 @@ BOOST_AUTO_TEST_CASE( RemoteClientTest1 ){
 
     cout << "starting remote client \n";
 
-    int testPort = 1044;
-    int client_id = 42;
-    string secret = "piglet";
+    PoohOptions options;
+    options.port = 1044;
+    options.client_id = 42;
+    options.secret = "piglet";
 
-    ChannelProvider<PoohCommand,string> testChannel(testPort);
+    ChannelProvider<PoohCommand,string> testChannel(options.port);
 
-    bp::child c("./eeyore", bp::args({"--p", to_string(testPort), "--c", to_string(client_id), "--i", secret}));
+
+    bp::child c("./eeyore", bp::args(options.get_option_args()));
 
     while( testChannel.attachedClientIds().size() < 1)  {
         sleep(1);
@@ -39,7 +41,7 @@ BOOST_AUTO_TEST_CASE( RemoteClientTest1 ){
     PoohCommand command;
     command.type = POOH_COMMAND_HELLO;
 
-    string reply = testChannel.send(client_id, command);
+    string reply = testChannel.send(options.client_id, command);
 
 
     BOOST_CHECK_EQUAL(  reply, "Hello Pooh" );
@@ -47,23 +49,23 @@ BOOST_AUTO_TEST_CASE( RemoteClientTest1 ){
     command.type = POOH_COMMAND_QUESTION;
     command.arg.push_back("name");
 
-    reply = testChannel.send(client_id, command);
+    reply = testChannel.send(options.client_id, command);
 
     BOOST_CHECK_EQUAL(  reply, "Eeyore" );
 
 
     command.type = POOH_COMMAND_QUESTION;
     command.arg.clear();
-    command.arg.push_back("init_var");
+    command.arg.push_back("secret");
 
-    reply = testChannel.send(client_id, command);
+    reply = testChannel.send(options.client_id, command);
 
-    BOOST_CHECK_EQUAL(  reply, secret );
+    BOOST_CHECK_EQUAL(  reply, options.secret );
 
 
     command.type = POOH_COMMAND_GOODBYE;
 
-    reply = testChannel.send(client_id, command);
+    reply = testChannel.send(options.client_id, command);
 
 
     BOOST_CHECK_EQUAL(  reply, "Bye now" );

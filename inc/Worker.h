@@ -35,7 +35,7 @@ using namespace std;
  * @class Worker
  * @brief A simple Worker object to transfer processing of objects to a worker thread
  *
- * The class of the worker is specified as the templaet parameter and that class is assumed ot have a void process()
+ * The class of the worker is specified as the template parameter and that class is assumed ot have a void process()
  * method. The Worker then provides a means of pushing objects of the template type to its queue and will
  * sequentially process each object on it's own managed thread. Options are provided to shutdown the thread without
  * waiting or by waiting for queued objects to be completed.

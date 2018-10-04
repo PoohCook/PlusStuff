@@ -5,9 +5,9 @@ BOOST = -Lboostlib/lib -lboost_unit_test_framework -lboost_system -lboost_serial
         -lboost_program_options -lboost_filesystem -Wl,-rpath,'boostlib/lib'
 
 DEPS = inc/Worker.h inc/ChannelProvider.h inc/ChannelClient.h inc/ChannelClientSession.h inc/ChannelProviderSession.h \
-       inc/ChannelSendProcessor.h inc/IsPrime.h inc/Logger.h inc/ChannelMessageHeader.h
+       inc/ChannelSendProcessor.h inc/IsPrime.h inc/Logger.h inc/ChannelMessageHeader.h inc/Options.h
 OBJ = obj/IsPrime.o
-TEST = obj/TestWorker.o obj/TestChannel.o obj/TestDuplexChannel.o obj/TestRemoteClient.o
+TEST = obj/TestWorker.o test/TestOptions.o obj/TestChannel.o obj/TestDuplexChannel.o obj/TestRemoteClient.o
 MUTED = -DDIAG_MESSAGES
 
 obj/%.o: src/%.cpp $(DEPS)
